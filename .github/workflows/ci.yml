@@ -147,10 +147,20 @@ jobs:
             tests/fixtures/shakespeare.txt
           key: fixtures-v1-${{ hashFiles('tests/fixtures/download_hf_fixtures.py', 'tests/fixtures/download_fixtures.sh') }}
 
+      # Pin the downloader to Python 3.13: `datasets` pulls `pyarrow` which
+      # bundles PyO3 0.26 — that doesn't support 3.15 yet, so building
+      # pyarrow from source fails on the 3.15 matrix entry. The downloaded
+      # JSONL files are interpreter-agnostic, so it doesn't matter that
+      # they're produced with 3.13.
+      - name: Install Python 3.13 (for fixture download tool)
+        if: steps.fixture-cache.outputs.cache-hit != 'true' && matrix.python-version != '3.13'
+        run: uv python install 3.13
+
       - name: Download HF fixtures (usc / edgar_agreements / patents)
         if: steps.fixture-cache.outputs.cache-hit != 'true'
         run: |
-          uv run --with huggingface_hub,tokenizers,datasets \
+          uv run --python 3.13 \
+            --with huggingface_hub,tokenizers,datasets \
             python tests/fixtures/download_hf_fixtures.py
 
       - name: Download Project Gutenberg fixtures (war_and_peace / shakespeare)
@@ -218,10 +228,11 @@ jobs:
             tests/fixtures/shakespeare.txt
           key: fixtures-v1-${{ hashFiles('tests/fixtures/download_hf_fixtures.py', 'tests/fixtures/download_fixtures.sh') }}
 
-      - name: Download HF fixtures
+      - name: Download HF fixtures (pinned to Python 3.13 for pyarrow/PyO3 compat)
         if: steps.fixture-cache.outputs.cache-hit != 'true'
         run: |
-          uv run --with huggingface_hub,tokenizers,datasets \
+          uv run --python 3.13 \
+            --with huggingface_hub,tokenizers,datasets \
             python tests/fixtures/download_hf_fixtures.py
 
       - name: Download Gutenberg fixtures
