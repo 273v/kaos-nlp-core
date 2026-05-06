@@ -25,7 +25,12 @@ use crate::core::quality::{
 // ── Typed result pyclasses ─────────────────────────────────────────────────
 
 /// Single-pass character-class counts.
-#[pyclass(frozen, get_all, module = "kaos_nlp_core._rust.quality")]
+#[pyclass(
+    frozen,
+    get_all,
+    skip_from_py_object,
+    module = "kaos_nlp_core._rust.quality"
+)]
 #[derive(Clone)]
 pub struct PyCharClassCounts {
     pub total_chars: u64,
@@ -45,7 +50,12 @@ pub struct PyCharClassCounts {
 }
 
 /// Token-level statistics.
-#[pyclass(frozen, get_all, module = "kaos_nlp_core._rust.quality")]
+#[pyclass(
+    frozen,
+    get_all,
+    skip_from_py_object,
+    module = "kaos_nlp_core._rust.quality"
+)]
 #[derive(Clone)]
 pub struct PyWordStats {
     pub num_words: u64,
@@ -59,7 +69,12 @@ pub struct PyWordStats {
 }
 
 /// Combined raw-metrics result returned by `analyze_text`.
-#[pyclass(frozen, get_all, module = "kaos_nlp_core._rust.quality")]
+#[pyclass(
+    frozen,
+    get_all,
+    skip_from_py_object,
+    module = "kaos_nlp_core._rust.quality"
+)]
 #[derive(Clone)]
 pub struct PyQualityRaw {
     pub chars: PyCharClassCounts,

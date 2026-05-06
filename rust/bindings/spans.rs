@@ -27,7 +27,14 @@ use pyo3::types::PyModule;
 /// Replaces the prior `@dataclass(frozen=True, slots=True) TokenSpan` —
 /// same field shape (`text`, `start`, `end`), now native PyO3 so the
 /// tokenizer hot path skips a Rust→PyDict→Python-dataclass round trip.
-#[pyclass(frozen, get_all, eq, hash, module = "kaos_nlp_core._rust.spans")]
+#[pyclass(
+    frozen,
+    get_all,
+    eq,
+    hash,
+    skip_from_py_object,
+    module = "kaos_nlp_core._rust.spans"
+)]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct PyTokenSpan {
     pub text: String,
@@ -58,7 +65,14 @@ impl PyTokenSpan {
 }
 
 /// A substring or pattern match with character offsets.
-#[pyclass(frozen, get_all, eq, hash, module = "kaos_nlp_core._rust.spans")]
+#[pyclass(
+    frozen,
+    get_all,
+    eq,
+    hash,
+    skip_from_py_object,
+    module = "kaos_nlp_core._rust.spans"
+)]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct PyMatchSpan {
     pub text: String,
@@ -86,7 +100,14 @@ impl PyMatchSpan {
 }
 
 /// A multi-pattern (Aho-Corasick) match with pattern index.
-#[pyclass(frozen, get_all, eq, hash, module = "kaos_nlp_core._rust.spans")]
+#[pyclass(
+    frozen,
+    get_all,
+    eq,
+    hash,
+    skip_from_py_object,
+    module = "kaos_nlp_core._rust.spans"
+)]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct PyPatternMatchSpan {
     pub text: String,
@@ -122,7 +143,13 @@ impl PyPatternMatchSpan {
 /// A regex match with capture groups. Hash/eq excluded because
 /// `Vec<Option<String>>` doesn't trivially hash; equality alone is enough
 /// for tests.
-#[pyclass(frozen, get_all, eq, module = "kaos_nlp_core._rust.spans")]
+#[pyclass(
+    frozen,
+    get_all,
+    eq,
+    skip_from_py_object,
+    module = "kaos_nlp_core._rust.spans"
+)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PyRegexMatchSpan {
     pub text: String,
@@ -170,7 +197,14 @@ impl PyRegexMatchSpan {
 }
 
 /// A fuzzy FST search result.
-#[pyclass(frozen, get_all, eq, hash, module = "kaos_nlp_core._rust.spans")]
+#[pyclass(
+    frozen,
+    get_all,
+    eq,
+    hash,
+    skip_from_py_object,
+    module = "kaos_nlp_core._rust.spans"
+)]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct PyFstSearchResult {
     pub key: String,
@@ -199,7 +233,12 @@ impl PyFstSearchResult {
 /// A scored document from `InvertedIndex` retrieval. Equality/hash use
 /// only `doc_id` because `f64` doesn't `Hash`/`Eq`; downstream callers
 /// that need score-aware equality should compare both fields explicitly.
-#[pyclass(frozen, get_all, module = "kaos_nlp_core._rust.spans")]
+#[pyclass(
+    frozen,
+    get_all,
+    skip_from_py_object,
+    module = "kaos_nlp_core._rust.spans"
+)]
 #[derive(Clone, Debug)]
 pub struct PyScoredDoc {
     pub doc_id: u32,
@@ -238,7 +277,14 @@ impl PyScoredDoc {
 }
 
 /// A term posting in an `InvertedIndex`.
-#[pyclass(frozen, get_all, eq, hash, module = "kaos_nlp_core._rust.spans")]
+#[pyclass(
+    frozen,
+    get_all,
+    eq,
+    hash,
+    skip_from_py_object,
+    module = "kaos_nlp_core._rust.spans"
+)]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct PyPostingEntry {
     pub doc_id: u32,
@@ -267,7 +313,12 @@ impl PyPostingEntry {
 /// A sentence/paragraph/line search hit (used by `search.search_paragraphs`,
 /// `search.search_sentences`, and the `Searcher.search()` corpus-level path).
 /// `score` excluded from hash/eq for the same f64 reason as `PyScoredDoc`.
-#[pyclass(frozen, get_all, module = "kaos_nlp_core._rust.spans")]
+#[pyclass(
+    frozen,
+    get_all,
+    skip_from_py_object,
+    module = "kaos_nlp_core._rust.spans"
+)]
 #[derive(Clone, Debug)]
 pub struct PySegmentHit {
     pub text: String,

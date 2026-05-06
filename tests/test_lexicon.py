@@ -336,8 +336,15 @@ class TestDefaultLexicon:
         assert len(lex) > 100_000
 
     def test_missing_lexicon_helpful_error(self, monkeypatch, tmp_path):
-        # Force the loader to look at empty paths only.
+        # Force the loader to look at empty paths only — AND mask the
+        # embedded-bytes path on _RustLexicon so the filesystem fallback
+        # is the only route. After the wheel-vendored embedding landed,
+        # `_RustLexicon.default_embedded()` is the default success path
+        # in published wheels; this test exercises the friendly error
+        # message that fires when both the embedded copy and every
+        # filesystem path miss.
         from kaos_nlp_core import lexicon as lex_module
+        from kaos_nlp_core._rust.lexicon import Lexicon as _RustLexicon
 
         monkeypatch.setattr(lex_module, "_DEFAULT_LEXICON", None)
         monkeypatch.setattr(
@@ -346,6 +353,12 @@ class TestDefaultLexicon:
             (tmp_path / "missing.bin",),
         )
         monkeypatch.delenv("KAOS_NLP_LEXICON_PATH", raising=False)
+
+        def _no_embedded() -> None:
+            raise ValueError("embedded path masked for test")
+
+        monkeypatch.setattr(_RustLexicon, "default_embedded", _no_embedded)
+
         with pytest.raises(FileNotFoundError) as exc_info:
             default_opengloss_lexicon()
         msg = str(exc_info.value)

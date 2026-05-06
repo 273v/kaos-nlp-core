@@ -145,11 +145,11 @@ class HybridRetriever:
 
         sparse = BM25Retriever.from_corpus(corpus, group_by=group_by, **bm25_kwargs)
 
+        # kaos-nlp-transformers ships in 0.1.0a2 (Wave 3); the lazy import
+        # below resolves at runtime when the optional sibling is installed.
+        # Static type checking suppressed with an inline directive.
         try:
-            # kaos-nlp-transformers ships in 0.1.0a2 (Wave 3); the lazy
-            # import resolves at runtime when the optional sibling is
-            # installed. ty can't see it statically.
-            from kaos_nlp_transformers.retrieval import EmbeddingRetriever  # ty: ignore[unresolved-import]
+            from kaos_nlp_transformers.retrieval import EmbeddingRetriever  # ty: ignore[unresolved-import]  # noqa: I001
 
             dense = EmbeddingRetriever.from_corpus(
                 corpus, group_by=group_by, model_id=model_id, batch_size=batch_size

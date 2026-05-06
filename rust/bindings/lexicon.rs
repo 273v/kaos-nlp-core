@@ -4,9 +4,11 @@ use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict, PyList};
 
 use crate::bindings::util::{
-    bincode_getstate, bincode_setstate, load_bincode_from_path, save_bincode_to_path,
+    bincode_getstate, bincode_setstate, decode_from_slice, encode_to_vec, read_knc_header,
+    zstd_decompress_capped, zstd_level, KNC_HEADER_LEN, KNC_MAGIC, KNC_VERSION_INTERN,
+    KNC_VERSION_RAW, KNC_VERSION_ZSTD,
 };
-use crate::core::lexicon::{Edge, LexemeEntry, Lexicon, RelationType, Sense};
+use crate::core::lexicon::{Edge, LexemeEntry, Lexicon, LexiconCompact, RelationType, Sense};
 
 /// Parse a Python dict into a LexemeEntry.
 fn dict_to_entry(d: &Bound<'_, PyDict>) -> PyResult<LexemeEntry> {
@@ -107,6 +109,109 @@ fn parse_relations(relations: Vec<String>) -> PyResult<Vec<RelationType>> {
     relations.iter().map(|s| parse_relation(s)).collect()
 }
 
+// ─── KNC v3 (Lexicon-specific) save/load ────────────────────────────────────
+
+/// Save a Lexicon to disk using KNC v3 (string-interned + dropped definitions
+/// + zstd-compressed postcard).
+///
+/// Use this for any Lexicon save — it is strictly smaller than KNC v2 for the
+/// same data.
+///
+/// Layout: `KNC1` magic, u16 LE version=3, zstd(postcard(LexiconCompact)).
+fn save_lexicon_to_path(lex: &Lexicon, path: &str) -> Result<(), String> {
+    let compact = lex.to_compact();
+    let raw = encode_to_vec(&compact).map_err(|e| e.to_string())?;
+    let compressed =
+        zstd::encode_all(raw.as_slice(), zstd_level()).map_err(|e| format!("zstd encode: {e}"))?;
+    let mut buf = Vec::with_capacity(KNC_HEADER_LEN + compressed.len());
+    buf.extend_from_slice(KNC_MAGIC);
+    buf.extend_from_slice(&KNC_VERSION_INTERN.to_le_bytes());
+    buf.extend_from_slice(&compressed);
+    std::fs::write(path, buf).map_err(|e| e.to_string())
+}
+
+/// Load a Lexicon from disk. Accepts:
+/// - KNC v1 (raw postcard of the runtime `Lexicon`)
+/// - KNC v2 (zstd(postcard(runtime `Lexicon`)))
+/// - KNC v3 (zstd(postcard(`LexiconCompact`)) — string-interned, definitions
+///   dropped; rehydrates `Sense::definition` as `""`)
+fn load_lexicon_from_path(path: &str) -> Result<Lexicon, String> {
+    let (version, payload) = read_knc_header(path)?;
+    decode_lexicon_payload(version, &payload, path)
+}
+
+/// Decode an in-memory KNC payload into a runtime Lexicon. Shared between the
+/// file-on-disk path (`load_lexicon_from_path`) and the wheel-embedded path
+/// (`Lexicon::default_embedded`). `source_label` is the user-facing string
+/// used in error messages — `path` for files, `"<embedded OpenGloss>"` for
+/// the bundled lexicon.
+fn decode_lexicon_payload(
+    version: u16,
+    payload: &[u8],
+    source_label: &str,
+) -> Result<Lexicon, String> {
+    match version {
+        KNC_VERSION_RAW => decode_from_slice::<Lexicon>(payload).map_err(|e| e.to_string()),
+        KNC_VERSION_ZSTD => {
+            let decompressed = zstd_decompress_capped(payload, source_label)?;
+            decode_from_slice::<Lexicon>(&decompressed).map_err(|e| e.to_string())
+        }
+        KNC_VERSION_INTERN => {
+            let decompressed = zstd_decompress_capped(payload, source_label)?;
+            let compact: LexiconCompact =
+                decode_from_slice(&decompressed).map_err(|e| e.to_string())?;
+            Lexicon::from_compact(compact)
+        }
+        _ => Err(format!(
+            "{source_label}: unsupported KNC format version {version} for Lexicon"
+        )),
+    }
+}
+
+// ─── Wheel-embedded OpenGloss lexicon ──────────────────────────────────────
+//
+// The canonical KNC v3 OpenGloss binary is baked into the compiled `_rust`
+// shared object via `include_bytes!`. End-users get a working
+// `default_opengloss_lexicon()` after `pip install kaos-nlp-core` with no
+// filesystem state, no network call, no env var. The override path (env var
+// `KAOS_NLP_LEXICON_PATH` / explicit `Lexicon.load(...)`) still works via the
+// file-loading code above.
+//
+// Source-of-truth: regenerate via
+//   `KAOS_NLP_ZSTD_LEVEL=19 uv run python scripts/build_opengloss_lexicon.py
+//    --output python/kaos_nlp_core/data/opengloss-v1.3.lexicon.bin --compression-level 19`
+// after which `cargo build --release` re-bakes the bytes into _rust.so.
+
+const EMBEDDED_OPENGLOSS_PATH: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/python/kaos_nlp_core/data/opengloss-v1.3.lexicon.bin"
+);
+
+/// Compile-time embedded OpenGloss v1.3 KNC v3 binary. ~32 MB at zstd level 19.
+const EMBEDDED_OPENGLOSS_BYTES: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/python/kaos_nlp_core/data/opengloss-v1.3.lexicon.bin"
+));
+
+/// Decode and return the lexicon embedded in this `_rust` shared object.
+fn load_embedded_opengloss() -> Result<Lexicon, String> {
+    if EMBEDDED_OPENGLOSS_BYTES.len() < KNC_HEADER_LEN
+        || &EMBEDDED_OPENGLOSS_BYTES[0..4] != KNC_MAGIC
+    {
+        return Err(format!(
+            "embedded OpenGloss bytes are corrupt or empty (len={}, expected file at {})",
+            EMBEDDED_OPENGLOSS_BYTES.len(),
+            EMBEDDED_OPENGLOSS_PATH
+        ));
+    }
+    let version = u16::from_le_bytes([EMBEDDED_OPENGLOSS_BYTES[4], EMBEDDED_OPENGLOSS_BYTES[5]]);
+    decode_lexicon_payload(
+        version,
+        &EMBEDDED_OPENGLOSS_BYTES[KNC_HEADER_LEN..],
+        "<embedded OpenGloss>",
+    )
+}
+
 // ─── PyLexicon ──────────────────────────────────────────────────────────────
 
 /// Semantic knowledge graph for query expansion.
@@ -143,16 +248,47 @@ impl PyLexicon {
 
     /// Load a Lexicon from disk.
     ///
-    /// **Trusted-source only.** The on-disk format is bincode behind a
-    /// magic + version header with a configurable size cap
+    /// **Trusted-source only.** The on-disk format uses postcard behind a
+    /// `KNC1` magic + u16 version header with a configurable size cap
     /// (`KAOS_NLP_MAX_LOAD_BYTES`, default 256 MiB). The header guards
     /// against truncated / mistyped files and unbounded allocations,
     /// but does not protect against an adversarial author of the file.
+    ///
+    /// Supports three versions:
+    ///
+    /// - **v1** — raw postcard of the runtime Lexicon. Legacy.
+    /// - **v2** — zstd-compressed postcard of the runtime Lexicon.
+    /// - **v3** — zstd-compressed postcard of a string-interned compact
+    ///   form. KNC v3 *intentionally drops* `Sense.definition` to save
+    ///   50–150 MB on the OpenGloss lexicon; runtime APIs
+    ///   (`synonyms`/`hypernyms`/`hyponyms`/`antonyms`/`related`/
+    ///   `expand_query`) never read it. After loading a v3 file,
+    ///   `get_senses()` returns `definition=""` for every sense.
+    ///
+    /// `Lexicon.save()` always writes v3.
     #[staticmethod]
     fn load(py: Python<'_>, path: &str) -> PyResult<Self> {
         let path_owned = path.to_string();
         let inner: Lexicon = py
-            .detach(|| load_bincode_from_path(&path_owned))
+            .detach(|| load_lexicon_from_path(&path_owned))
+            .map_err(pyo3::exceptions::PyValueError::new_err)?;
+        Ok(Self { inner })
+    }
+
+    /// Load the OpenGloss v1.3 lexicon embedded in this `_rust` shared
+    /// object. ~32 MB KNC v3 binary baked in at build time via
+    /// `include_bytes!`. Returns the same fully-rehydrated `Lexicon` as
+    /// `Lexicon.load(<path>)` would for the same source bytes — except
+    /// `Sense.definition` is `""` (KNC v3 drops definitions; see
+    /// `Lexicon.load` for the rationale).
+    ///
+    /// This is the path `default_opengloss_lexicon()` calls when no env-var
+    /// override is set, giving a working lexicon out of the box after
+    /// `pip install kaos-nlp-core` with no filesystem state required.
+    #[staticmethod]
+    fn default_embedded(py: Python<'_>) -> PyResult<Self> {
+        let inner: Lexicon = py
+            .detach(load_embedded_opengloss)
             .map_err(pyo3::exceptions::PyValueError::new_err)?;
         Ok(Self { inner })
     }
@@ -166,10 +302,16 @@ impl PyLexicon {
         Ok(())
     }
 
+    /// Save this Lexicon to disk in KNC v3 format (string-interned + zstd).
+    ///
+    /// **KNC v3 drops `Sense.definition`** by design — that field is never
+    /// read by the runtime relation/expansion APIs. If you reload a saved
+    /// lexicon, `get_senses()[i]["definition"]` will be `""`. See `load()`
+    /// for the full version compatibility matrix.
     fn save(&self, py: Python<'_>, path: &str) -> PyResult<()> {
         let path_owned = path.to_string();
         let inner = &self.inner;
-        py.detach(|| save_bincode_to_path(inner, &path_owned))
+        py.detach(|| save_lexicon_to_path(inner, &path_owned))
             .map_err(pyo3::exceptions::PyIOError::new_err)
     }
 
@@ -373,4 +515,198 @@ pub fn register_module(parent: &Bound<'_, PyModule>) -> PyResult<()> {
         .set_item("kaos_nlp_core._rust.lexicon", &m)?;
 
     Ok(())
+}
+
+// ─── KNC v1/v2/v3 file-format tests ─────────────────────────────────────────
+//
+// These tests exercise the Lexicon-specific save/load path and the legacy
+// version compatibility. They live in the bindings layer because they use
+// the binding-side wire helpers (zstd, KNC framing, postcard). Pure-core
+// `to_compact` / `from_compact` round-trip tests live in
+// `rust/core/lexicon.rs` so they run under `cargo test --no-default-features`.
+#[cfg(test)]
+mod format_tests {
+    use super::*;
+    use std::io::Write;
+
+    fn build_test_lexicon() -> Lexicon {
+        let mut lex = Lexicon::new();
+        lex.add_entry(LexemeEntry {
+            word: "contract".to_string(),
+            senses: vec![Sense {
+                part_of_speech: "noun".to_string(),
+                sense_index: 0,
+                definition: "A legally binding agreement (DROPPED ON SAVE)".to_string(),
+                synonyms: vec!["agreement".to_string(), "pact".to_string()],
+                antonyms: vec!["breach".to_string()],
+                hypernyms: vec!["legal document".to_string()],
+                hyponyms: vec!["employment contract".to_string()],
+            }],
+            edges: vec![],
+            all_synonyms: vec!["agreement".to_string(), "pact".to_string()],
+            all_antonyms: vec!["breach".to_string()],
+            all_hypernyms: vec!["legal document".to_string()],
+            all_hyponyms: vec!["employment contract".to_string()],
+            all_inflections: vec!["contracts".to_string()],
+            all_derivations: vec!["contractor".to_string()],
+            all_collocations: vec!["sign a contract".to_string()],
+        });
+        lex.add_entry(LexemeEntry {
+            word: "agreement".to_string(),
+            senses: vec![Sense {
+                part_of_speech: "noun".to_string(),
+                sense_index: 0,
+                definition: "Mutual understanding (DROPPED ON SAVE)".to_string(),
+                synonyms: vec!["contract".to_string(), "accord".to_string()],
+                antonyms: vec!["disagreement".to_string()],
+                hypernyms: vec!["arrangement".to_string()],
+                hyponyms: vec!["treaty".to_string()],
+            }],
+            edges: vec![],
+            all_synonyms: vec!["contract".to_string(), "accord".to_string()],
+            all_antonyms: vec!["disagreement".to_string()],
+            all_hypernyms: vec!["arrangement".to_string()],
+            all_hyponyms: vec!["treaty".to_string()],
+            all_inflections: vec![],
+            all_derivations: vec![],
+            all_collocations: vec![],
+        });
+        lex
+    }
+
+    fn tmpfile(name: &str) -> std::path::PathBuf {
+        let mut p = std::env::temp_dir();
+        let pid = std::process::id();
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        p.push(format!("knc_test_{pid}_{nanos}_{name}"));
+        p
+    }
+
+    /// Synthesize a KNC v1 (raw postcard, uncompressed) file on disk using the
+    /// runtime `Lexicon` schema. Mimics what an old 0.x prerelease wrote.
+    fn write_v1_file(lex: &Lexicon, path: &std::path::Path) {
+        let bytes = postcard::to_allocvec(lex).unwrap();
+        let mut f = std::fs::File::create(path).unwrap();
+        f.write_all(KNC_MAGIC).unwrap();
+        f.write_all(&KNC_VERSION_RAW.to_le_bytes()).unwrap();
+        f.write_all(&bytes).unwrap();
+    }
+
+    /// Synthesize a KNC v2 (zstd-compressed postcard of the runtime Lexicon)
+    /// file on disk. Mimics what `save_bincode_to_path` produces.
+    fn write_v2_file(lex: &Lexicon, path: &std::path::Path) {
+        let raw = postcard::to_allocvec(lex).unwrap();
+        let compressed = zstd::encode_all(raw.as_slice(), 3).unwrap();
+        let mut f = std::fs::File::create(path).unwrap();
+        f.write_all(KNC_MAGIC).unwrap();
+        f.write_all(&KNC_VERSION_ZSTD.to_le_bytes()).unwrap();
+        f.write_all(&compressed).unwrap();
+    }
+
+    #[test]
+    fn test_v3_smaller_than_v2() {
+        // KNC v3's reason for existing: smaller files on real lexicons.
+        // Even on a tiny 2-entry fixture, dropping the definition strings +
+        // interning the repeated "noun"/"agreement"/"contract" tokens should
+        // beat or at least match v2.
+        let lex = build_test_lexicon();
+
+        let v2_path = tmpfile("v2.bin");
+        write_v2_file(&lex, &v2_path);
+        let v2_size = std::fs::metadata(&v2_path).unwrap().len();
+
+        let v3_path = tmpfile("v3.bin");
+        save_lexicon_to_path(&lex, v3_path.to_str().unwrap()).unwrap();
+        let v3_size = std::fs::metadata(&v3_path).unwrap().len();
+
+        assert!(
+            v3_size < v2_size,
+            "v3 ({v3_size} bytes) should be smaller than v2 ({v2_size} bytes)"
+        );
+
+        // Confirm v3 file actually has the v3 marker.
+        let bytes = std::fs::read(&v3_path).unwrap();
+        assert_eq!(&bytes[0..4], KNC_MAGIC);
+        let version = u16::from_le_bytes([bytes[4], bytes[5]]);
+        assert_eq!(version, KNC_VERSION_INTERN);
+
+        let _ = std::fs::remove_file(&v2_path);
+        let _ = std::fs::remove_file(&v3_path);
+    }
+
+    #[test]
+    fn test_load_v1_legacy() {
+        let lex = build_test_lexicon();
+        let path = tmpfile("v1.bin");
+        write_v1_file(&lex, &path);
+
+        let loaded = load_lexicon_from_path(path.to_str().unwrap()).unwrap();
+        assert_eq!(loaded.len(), lex.len());
+        assert_eq!(loaded.synonyms("contract"), lex.synonyms("contract"));
+        // v1 preserves definitions (no compact step).
+        let def = &loaded.get("contract").unwrap().senses[0].definition;
+        assert!(def.contains("DROPPED ON SAVE"));
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn test_load_v2_legacy() {
+        let lex = build_test_lexicon();
+        let path = tmpfile("v2.bin");
+        write_v2_file(&lex, &path);
+
+        let loaded = load_lexicon_from_path(path.to_str().unwrap()).unwrap();
+        assert_eq!(loaded.len(), lex.len());
+        assert_eq!(loaded.synonyms("contract"), lex.synonyms("contract"));
+        // v2 also preserves definitions.
+        let def = &loaded.get("contract").unwrap().senses[0].definition;
+        assert!(def.contains("DROPPED ON SAVE"));
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn test_load_v3_drops_definitions() {
+        // Save (which uses v3) → load → confirm definitions are empty even
+        // though the in-memory original had populated definitions.
+        let lex = build_test_lexicon();
+        let path = tmpfile("v3_drop.bin");
+        save_lexicon_to_path(&lex, path.to_str().unwrap()).unwrap();
+
+        let loaded = load_lexicon_from_path(path.to_str().unwrap()).unwrap();
+        assert_eq!(loaded.len(), lex.len());
+
+        // Relations must round-trip.
+        assert_eq!(loaded.synonyms("contract"), lex.synonyms("contract"));
+        assert_eq!(loaded.hypernyms("agreement"), lex.hypernyms("agreement"));
+
+        // Definitions must be empty.
+        for word in loaded.words() {
+            for sense in &loaded.get(word).unwrap().senses {
+                assert_eq!(
+                    sense.definition, "",
+                    "v3 must drop definitions; got non-empty for {word}"
+                );
+            }
+        }
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn test_v3_header_layout() {
+        // Sanity: v3 file has exactly the documented 6-byte header.
+        let lex = build_test_lexicon();
+        let path = tmpfile("v3_hdr.bin");
+        save_lexicon_to_path(&lex, path.to_str().unwrap()).unwrap();
+        let bytes = std::fs::read(&path).unwrap();
+        assert!(bytes.len() > KNC_HEADER_LEN);
+        assert_eq!(&bytes[0..4], KNC_MAGIC);
+        assert_eq!(u16::from_le_bytes([bytes[4], bytes[5]]), KNC_VERSION_INTERN);
+        let _ = std::fs::remove_file(&path);
+    }
 }

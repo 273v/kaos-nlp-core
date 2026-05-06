@@ -342,6 +342,234 @@ impl Lexicon {
     }
 }
 
+// ─── Compact (KNC v3) on-disk representation ────────────────────────────────
+//
+// KNC v3 is a Lexicon-specific schema-level optimization atop the v2 zstd
+// transport. Two combined changes vs v2:
+//
+//   1. `Sense.definition` is **dropped** from the on-disk and (after a load)
+//      in-memory representation. Runtime APIs
+//      (`Lexicon::synonyms`/`hypernyms`/`hyponyms`/`antonyms`/`related`/
+//       `expand_query`) never read it, and storing English-prose definitions
+//      for hundreds of thousands of senses costs 50–150 MB before compression.
+//      End-user impact: after loading a v3 file, `Sense::definition` is the
+//      empty string. PyO3's `get_senses()` returns `definition=""` accordingly.
+//
+//   2. Every string reference (entry word, edge target, sense relation list,
+//      aggregated relation list, part-of-speech) is interned into one global
+//      `Vec<String>` string pool, with `u32` indices in every other field.
+//      The OpenGloss lexicon repeats the same target words ("agreement",
+//      "document", "person", part-of-speech tags) across hundreds of entries;
+//      this dedupe is worth tens of MB before compression and improves the
+//      compression ratio because postcard then sees small varints, not strings.
+//
+// The runtime `Lexicon`/`LexemeEntry`/`Sense`/`Edge` types are unchanged — the
+// rehydration step in `from_compact` resolves indices back to `String` so the
+// public API stays identical.
+
+/// Compact on-disk lexicon. Only used by the KNC v3 save/load path; see the
+/// module-level comment for the rationale.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LexiconCompact {
+    /// Unique strings; `string_pool[i]` is the string with id `i`.
+    pub string_pool: Vec<String>,
+    pub entries: Vec<LexemeEntryCompact>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LexemeEntryCompact {
+    pub word_id: u32,
+    pub senses: Vec<SenseCompact>,
+    pub edges: Vec<EdgeCompact>,
+    pub all_synonyms: Vec<u32>,
+    pub all_antonyms: Vec<u32>,
+    pub all_hypernyms: Vec<u32>,
+    pub all_hyponyms: Vec<u32>,
+    pub all_inflections: Vec<u32>,
+    pub all_derivations: Vec<u32>,
+    pub all_collocations: Vec<u32>,
+}
+
+/// Compact sense — note `definition` is intentionally absent (KNC v3 drop).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SenseCompact {
+    pub pos_id: u32,
+    pub sense_index: u32,
+    pub synonyms: Vec<u32>,
+    pub antonyms: Vec<u32>,
+    pub hypernyms: Vec<u32>,
+    pub hyponyms: Vec<u32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EdgeCompact {
+    pub relationship_type: RelationType,
+    pub target_id: u32,
+    pub source_pos_id: Option<u32>,
+    pub sense_index: Option<u32>,
+}
+
+/// Internal builder that interns strings into a pool and hands out u32 ids.
+struct StringInterner {
+    pool: Vec<String>,
+    index: AHashMap<String, u32>,
+}
+
+impl StringInterner {
+    fn new() -> Self {
+        Self {
+            pool: Vec::new(),
+            index: AHashMap::new(),
+        }
+    }
+
+    fn intern(&mut self, s: &str) -> u32 {
+        if let Some(&id) = self.index.get(s) {
+            return id;
+        }
+        let id = u32::try_from(self.pool.len()).expect("string pool exceeded u32::MAX entries");
+        self.pool.push(s.to_string());
+        self.index.insert(s.to_string(), id);
+        id
+    }
+
+    fn intern_many(&mut self, items: &[String]) -> Vec<u32> {
+        items.iter().map(|s| self.intern(s)).collect()
+    }
+
+    fn into_pool(self) -> Vec<String> {
+        self.pool
+    }
+}
+
+impl Lexicon {
+    /// Build a compact (KNC v3) representation suitable for serialization.
+    ///
+    /// Walks every entry, interns all string-typed fields into a single
+    /// global string pool, and replaces strings with `u32` ids. `definition`
+    /// is **discarded** by design — see the module-level comment.
+    pub fn to_compact(&self) -> LexiconCompact {
+        let mut interner = StringInterner::new();
+
+        // Stable iteration order for byte-reproducible output.
+        let mut words: Vec<&String> = self.entries.keys().collect();
+        words.sort_unstable();
+
+        let mut compact_entries: Vec<LexemeEntryCompact> = Vec::with_capacity(words.len());
+        for word in words {
+            let entry = &self.entries[word];
+            let word_id = interner.intern(&entry.word);
+
+            let senses: Vec<SenseCompact> = entry
+                .senses
+                .iter()
+                .map(|s| SenseCompact {
+                    pos_id: interner.intern(&s.part_of_speech),
+                    sense_index: s.sense_index,
+                    synonyms: interner.intern_many(&s.synonyms),
+                    antonyms: interner.intern_many(&s.antonyms),
+                    hypernyms: interner.intern_many(&s.hypernyms),
+                    hyponyms: interner.intern_many(&s.hyponyms),
+                })
+                .collect();
+
+            let edges: Vec<EdgeCompact> = entry
+                .edges
+                .iter()
+                .map(|e| EdgeCompact {
+                    relationship_type: e.relationship_type,
+                    target_id: interner.intern(&e.target),
+                    source_pos_id: e.source_pos.as_deref().map(|p| interner.intern(p)),
+                    sense_index: e.sense_index,
+                })
+                .collect();
+
+            compact_entries.push(LexemeEntryCompact {
+                word_id,
+                senses,
+                edges,
+                all_synonyms: interner.intern_many(&entry.all_synonyms),
+                all_antonyms: interner.intern_many(&entry.all_antonyms),
+                all_hypernyms: interner.intern_many(&entry.all_hypernyms),
+                all_hyponyms: interner.intern_many(&entry.all_hyponyms),
+                all_inflections: interner.intern_many(&entry.all_inflections),
+                all_derivations: interner.intern_many(&entry.all_derivations),
+                all_collocations: interner.intern_many(&entry.all_collocations),
+            });
+        }
+
+        LexiconCompact {
+            string_pool: interner.into_pool(),
+            entries: compact_entries,
+        }
+    }
+
+    /// Rehydrate a `Lexicon` from a `LexiconCompact`. `Sense::definition` is
+    /// populated as the empty string since KNC v3 dropped that field on save.
+    pub fn from_compact(c: LexiconCompact) -> Result<Self, String> {
+        let pool = &c.string_pool;
+        let resolve = |id: u32| -> Result<String, String> {
+            pool.get(id as usize)
+                .cloned()
+                .ok_or_else(|| format!("string pool index {id} out of bounds (len={})", pool.len()))
+        };
+        let resolve_many = |ids: &[u32]| -> Result<Vec<String>, String> {
+            ids.iter().map(|&id| resolve(id)).collect()
+        };
+
+        let mut entries: AHashMap<String, LexemeEntry> = AHashMap::with_capacity(c.entries.len());
+        for ce in c.entries {
+            let word = resolve(ce.word_id)?;
+
+            let senses: Vec<Sense> = ce
+                .senses
+                .into_iter()
+                .map(|sc| {
+                    Ok::<_, String>(Sense {
+                        part_of_speech: resolve(sc.pos_id)?,
+                        sense_index: sc.sense_index,
+                        // KNC v3 drops definitions; rehydrate as empty.
+                        definition: String::new(),
+                        synonyms: resolve_many(&sc.synonyms)?,
+                        antonyms: resolve_many(&sc.antonyms)?,
+                        hypernyms: resolve_many(&sc.hypernyms)?,
+                        hyponyms: resolve_many(&sc.hyponyms)?,
+                    })
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+
+            let edges: Vec<Edge> = ce
+                .edges
+                .into_iter()
+                .map(|ec| {
+                    Ok::<_, String>(Edge {
+                        relationship_type: ec.relationship_type,
+                        target: resolve(ec.target_id)?,
+                        source_pos: ec.source_pos_id.map(resolve).transpose()?,
+                        sense_index: ec.sense_index,
+                    })
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+
+            let entry = LexemeEntry {
+                word: word.clone(),
+                senses,
+                edges,
+                all_synonyms: resolve_many(&ce.all_synonyms)?,
+                all_antonyms: resolve_many(&ce.all_antonyms)?,
+                all_hypernyms: resolve_many(&ce.all_hypernyms)?,
+                all_hyponyms: resolve_many(&ce.all_hyponyms)?,
+                all_inflections: resolve_many(&ce.all_inflections)?,
+                all_derivations: resolve_many(&ce.all_derivations)?,
+                all_collocations: resolve_many(&ce.all_collocations)?,
+            };
+            entries.insert(word, entry);
+        }
+
+        Ok(Self { entries })
+    }
+}
+
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -513,6 +741,124 @@ mod tests {
         assert!(lex.synonyms("nonexistent").is_empty());
         let expanded = lex.expand_query(&["nonexistent"], &[RelationType::Synonym], 1);
         assert_eq!(expanded.len(), 1); // just the original term
+    }
+
+    #[test]
+    fn test_compact_roundtrip_preserves_relations() {
+        // KNC v3 round-trip: to_compact → from_compact must preserve every
+        // relation lookup the runtime API exposes. The only field that is
+        // intentionally dropped is `Sense::definition` (covered separately).
+        let original = build_test_lexicon();
+        let compact = original.to_compact();
+        let rehydrated = Lexicon::from_compact(compact).expect("from_compact");
+
+        assert_eq!(rehydrated.len(), original.len());
+        for word in original.words() {
+            assert!(rehydrated.contains(word), "missing word: {word}");
+            assert_eq!(
+                rehydrated.synonyms(word),
+                original.synonyms(word),
+                "synonyms mismatch for {word}"
+            );
+            assert_eq!(rehydrated.antonyms(word), original.antonyms(word));
+            assert_eq!(rehydrated.hypernyms(word), original.hypernyms(word));
+            assert_eq!(rehydrated.hyponyms(word), original.hyponyms(word));
+            assert_eq!(rehydrated.inflections(word), original.inflections(word));
+            assert_eq!(rehydrated.collocations(word), original.collocations(word));
+
+            // Sense-aware lookups too.
+            let s_orig = original.related("contract", RelationType::Synonym, Some("noun"), Some(0));
+            let s_rehy =
+                rehydrated.related("contract", RelationType::Synonym, Some("noun"), Some(0));
+            assert_eq!(s_orig, s_rehy);
+        }
+
+        // Senses preserved structurally (POS + sense_index + per-sense lists).
+        let orig_entry = original.get("contract").unwrap();
+        let rehy_entry = rehydrated.get("contract").unwrap();
+        assert_eq!(orig_entry.senses.len(), rehy_entry.senses.len());
+        for (a, b) in orig_entry.senses.iter().zip(rehy_entry.senses.iter()) {
+            assert_eq!(a.part_of_speech, b.part_of_speech);
+            assert_eq!(a.sense_index, b.sense_index);
+            assert_eq!(a.synonyms, b.synonyms);
+            assert_eq!(a.antonyms, b.antonyms);
+            assert_eq!(a.hypernyms, b.hypernyms);
+            assert_eq!(a.hyponyms, b.hyponyms);
+        }
+    }
+
+    #[test]
+    fn test_compact_drops_definitions() {
+        // KNC v3 explicitly drops `Sense.definition` to save 50–150 MB on the
+        // OpenGloss lexicon. Loading a v3-derived lexicon must surface empty
+        // strings, even if the source had populated definitions.
+        let original = build_test_lexicon();
+        let orig_def = original
+            .get("contract")
+            .unwrap()
+            .senses
+            .iter()
+            .find(|s| s.part_of_speech == "noun")
+            .map(|s| s.definition.as_str())
+            .unwrap_or("");
+        assert!(
+            !orig_def.is_empty(),
+            "fixture should have a definition pre-compact"
+        );
+
+        let rehydrated = Lexicon::from_compact(original.to_compact()).unwrap();
+        for entry in rehydrated.entries.values() {
+            for sense in &entry.senses {
+                assert_eq!(
+                    sense.definition, "",
+                    "expected dropped definition on {}::{} (KNC v3)",
+                    entry.word, sense.part_of_speech
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_compact_string_pool_dedupes() {
+        // The whole point of v3 is that repeated strings get one slot in the
+        // pool. "agreement" appears as headword + cross-reference; "noun"
+        // appears in every noun sense. With ~5 entries we can prove dedupe.
+        let lex = build_test_lexicon();
+        let compact = lex.to_compact();
+        let pool = &compact.string_pool;
+
+        // Every pool entry must be unique.
+        let unique: AHashSet<&String> = pool.iter().collect();
+        assert_eq!(unique.len(), pool.len(), "pool contains duplicates");
+
+        // Spot-check that strings used in multiple places (e.g. "agreement"
+        // appears as a headword AND as a synonym of "contract") have a single
+        // canonical id.
+        let agreement_id = pool.iter().position(|s| s == "agreement").unwrap();
+        // Inspect the contract entry's all_synonyms — should reference that id.
+        let contract_compact = compact
+            .entries
+            .iter()
+            .find(|e| pool[e.word_id as usize] == "contract")
+            .unwrap();
+        assert!(
+            contract_compact
+                .all_synonyms
+                .contains(&(agreement_id as u32)),
+            "expected 'agreement' to be referenced by id, not duplicated"
+        );
+    }
+
+    #[test]
+    fn test_compact_postcard_roundtrip() {
+        // End-to-end: encode the compact form to a byte buffer with postcard,
+        // decode it, rehydrate, and confirm relations survive. This is the
+        // wire-level behaviour KNC v3 ships, minus the zstd transport.
+        let lex = build_test_lexicon();
+        let bytes = postcard::to_allocvec(&lex.to_compact()).unwrap();
+        let compact: LexiconCompact = postcard::from_bytes(&bytes).unwrap();
+        let rehy = Lexicon::from_compact(compact).unwrap();
+        assert_eq!(rehy.synonyms("contract"), lex.synonyms("contract"));
     }
 
     #[test]

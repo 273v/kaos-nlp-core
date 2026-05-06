@@ -13,6 +13,16 @@ use crate::core::segmentation::{
     PunctProfile, PunktParameters, PunktSentenceTokenizer, PunktTrainer, Segment, WordLexicon,
 };
 
+// Default Punkt model (~12 MB gzipped JSON) baked into _rust.abi3.so at
+// compile time. Mirrors the embedded-OpenGloss-lexicon pattern in
+// `bindings::lexicon` so end users get default sentence segmentation with
+// no filesystem state after `pip install kaos-nlp-core`. The file ships in
+// the sdist; the wheel ships only the .so that contains the bytes.
+const EMBEDDED_PUNKT_BYTES: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/python/kaos_nlp_core/models/default.npkt.gz"
+));
+
 // ─── PyPunktParameters ──────────────────────────────────────────────────────
 
 /// Punkt model parameters (abbreviations, collocations, sentence starters, decision weights).
@@ -60,6 +70,24 @@ impl PyPunktParameters {
         let path_owned = path.to_string();
         let result =
             py.detach(|| PunktParameters::load_compressed(&path_owned).map_err(|e| e.to_string()));
+        result
+            .map(|p| Self { inner: Arc::new(p) })
+            .map_err(pyo3::exceptions::PyIOError::new_err)
+    }
+
+    /// Load the default Punkt model embedded in this `_rust` shared object.
+    /// ~12 MB gzipped JSON baked in at build time via `include_bytes!`. End
+    /// users get a working sentence/paragraph segmenter after
+    /// `pip install kaos-nlp-core` with no filesystem state, mirroring the
+    /// embedded-OpenGloss-lexicon pattern. The override path
+    /// (`PunktParameters.load(path)`) still works for users with custom
+    /// trained models.
+    #[staticmethod]
+    fn default_embedded(py: Python<'_>) -> PyResult<Self> {
+        let result = py.detach(|| {
+            PunktParameters::from_compressed_bytes(EMBEDDED_PUNKT_BYTES)
+                .map_err(|e| e.to_string())
+        });
         result
             .map(|p| Self { inner: Arc::new(p) })
             .map_err(pyo3::exceptions::PyIOError::new_err)

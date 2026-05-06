@@ -222,6 +222,16 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--batch-size", type=int, default=_DEFAULT_BATCH_SIZE, help="Batch size for add_entries"
     )
+    parser.add_argument(
+        "--compression-level",
+        type=int,
+        default=19,
+        help=(
+            "zstd compression level used by Lexicon.save() (default: 19 — "
+            "maintainer-grade, slow compress / fast decompress, smallest wire "
+            "size). Set to 3 for fast iteration during local development."
+        ),
+    )
     args = parser.parse_args(argv)
 
     if args.output is None:
@@ -233,6 +243,12 @@ def main(argv: list[str] | None = None) -> None:
     if args.verify:
         verify_lexicon(output_path)
     else:
+        # The Rust save path reads KAOS_NLP_ZSTD_LEVEL at write time.
+        # Override here so the canonical asset ships at the smaller wire size
+        # without forcing user-side runtime saves to pay the slow level-19 cost.
+        import os
+
+        os.environ["KAOS_NLP_ZSTD_LEVEL"] = str(args.compression_level)
         build_lexicon(output_path, dataset_id=args.dataset, batch_size=args.batch_size)
         print()
         verify_lexicon(output_path)

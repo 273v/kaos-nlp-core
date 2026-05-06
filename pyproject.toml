@@ -108,16 +108,28 @@ include = [
   { path = "SECURITY.md", format = "sdist" },
 ]
 # Keep runtime/scratch artifacts out of the sdist + wheel.
+#
+# python/kaos_nlp_core/data/opengloss-*.bin and
+# python/kaos_nlp_core/models/default.npkt.gz are excluded from the WHEEL
+# because the Rust crate `include_bytes!`-bakes those bytes directly into
+# `_rust.abi3.so`. Shipping the files separately would duplicate ~44 MB
+# inside every wheel. The files ship in the SDIST so source builds (which
+# need the bytes at compile time via include_bytes!) work without
+# re-running the build script.
 exclude = [
   { path = ".pytest_cache/**", format = "sdist" },
   { path = ".ruff_cache/**", format = "sdist" },
   { path = ".venv/**", format = "sdist" },
   { path = "htmlcov/**", format = "sdist" },
   { path = "target/**", format = "sdist" },
-  { path = "data/opengloss-*.bin", format = "sdist" },  # 358 MB lexicon — downloaded at runtime
+  { path = "data/opengloss-*.bin", format = "sdist" },  # 238 MB v1 lexicon — top-level dev artifact
   { path = "tests/fixtures/*.jsonl", format = "sdist" },  # HF/Gutenberg fixtures
   { path = "tests/fixtures/*.txt", format = "sdist" },
   { path = "target/**", format = "wheel" },
+  # Bytes already inside _rust.abi3.so via include_bytes! — exclude from
+  # wheel to avoid duplication.
+  { path = "python/kaos_nlp_core/data/opengloss-*.bin", format = "wheel" },
+  { path = "python/kaos_nlp_core/models/default.npkt.gz", format = "wheel" },
 ]
 
 [tool.pytest.ini_options]
