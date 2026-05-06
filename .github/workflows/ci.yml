@@ -130,6 +130,41 @@ jobs:
       - name: Build PyO3 extension (maturin develop --release)
         run: uv run maturin develop --release
 
+      # ─── Test fixture downloads (cached) ────────────────────────────
+      # The retrieval / lexicon / segmentation / integration test suites
+      # need real corpora (~370 MB total). Cache key is pinned to the
+      # downloader scripts' hash so a script change invalidates and
+      # re-downloads; otherwise it's a free no-op after the first CI run.
+      - name: Cache HF + Gutenberg test fixtures
+        id: fixture-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            tests/fixtures/usc.jsonl
+            tests/fixtures/edgar_agreements.jsonl
+            tests/fixtures/patents.jsonl
+            tests/fixtures/war_and_peace.txt
+            tests/fixtures/shakespeare.txt
+          key: fixtures-v1-${{ hashFiles('tests/fixtures/download_hf_fixtures.py', 'tests/fixtures/download_fixtures.sh') }}
+
+      - name: Download HF fixtures (usc / edgar_agreements / patents)
+        if: steps.fixture-cache.outputs.cache-hit != 'true'
+        run: |
+          uv run --with huggingface_hub,tokenizers,datasets \
+            python tests/fixtures/download_hf_fixtures.py
+
+      - name: Download Project Gutenberg fixtures (war_and_peace / shakespeare)
+        if: steps.fixture-cache.outputs.cache-hit != 'true'
+        run: bash tests/fixtures/download_fixtures.sh
+
+      - name: Verify fixtures present (cache + downloads)
+        run: |
+          ls -lh tests/fixtures/usc.jsonl \
+                 tests/fixtures/edgar_agreements.jsonl \
+                 tests/fixtures/patents.jsonl \
+                 tests/fixtures/war_and_peace.txt \
+                 tests/fixtures/shakespeare.txt
+
       - name: Run tests with coverage
         run: |
           uv run pytest \
@@ -171,6 +206,28 @@ jobs:
       - name: Build PyO3 extension
         run: uv run maturin develop --release
 
+      - name: Cache HF + Gutenberg test fixtures
+        id: fixture-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            tests/fixtures/usc.jsonl
+            tests/fixtures/edgar_agreements.jsonl
+            tests/fixtures/patents.jsonl
+            tests/fixtures/war_and_peace.txt
+            tests/fixtures/shakespeare.txt
+          key: fixtures-v1-${{ hashFiles('tests/fixtures/download_hf_fixtures.py', 'tests/fixtures/download_fixtures.sh') }}
+
+      - name: Download HF fixtures
+        if: steps.fixture-cache.outputs.cache-hit != 'true'
+        run: |
+          uv run --with huggingface_hub,tokenizers,datasets \
+            python tests/fixtures/download_hf_fixtures.py
+
+      - name: Download Gutenberg fixtures
+        if: steps.fixture-cache.outputs.cache-hit != 'true'
+        run: bash tests/fixtures/download_fixtures.sh
+
       - name: Run tests
         run: |
           uv run pytest \
@@ -211,15 +268,32 @@ jobs:
           uv pip install --python /tmp/smoke/bin/python dist/kaos_nlp_core-*-cp*.whl
           /tmp/smoke/bin/python -c "
           import kaos_nlp_core
+          from importlib.metadata import version
           from kaos_nlp_core.tokenizer import Tokenizer
           from kaos_nlp_core.structures import InvertedIndex
+          from kaos_nlp_core.lexicon import default_opengloss_lexicon
+
           assert kaos_nlp_core.__version__, 'version missing from wheel'
+          assert kaos_nlp_core.__version__ == version('kaos-nlp-core'), \
+              'version drift between module and dist-info'
+
+          # Tokenizer.tokenize returns list[TokenSpan]; check the .text attr.
           tok = Tokenizer(lowercase=True)
-          assert tok.tokenize('Hello, world.') == ['hello', 'world']
+          spans = tok.tokenize('Hello, world.')
+          assert [s.text for s in spans] == ['hello', 'world'], \
+              f'unexpected tokenize output: {spans!r}'
+
+          # BM25 round-trip via InvertedIndex.
           idx = InvertedIndex.build_batch([(0, ['the', 'quick', 'brown', 'fox']),
                                            (1, ['a', 'lazy', 'dog'])])
           hits = idx.query_bm25(['quick', 'fox'], top_k=2)
           assert hits and hits[0].doc_id == 0
+
+          # Wheel-vendored embedded lexicon must load with no env var.
+          lex = default_opengloss_lexicon()
+          assert len(lex) > 100_000, f'embedded lexicon too small: {len(lex):,}'
+          assert lex.synonyms('contract'), 'lexicon missing core entries'
+
           print(f'kaos-nlp-core {kaos_nlp_core.__version__}: smoke OK')
           "
           # Exercise the CLI entrypoint
