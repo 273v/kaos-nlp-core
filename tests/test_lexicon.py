@@ -6,7 +6,6 @@ from pathlib import Path
 import pytest
 
 from kaos_nlp_core.lexicon import (
-    OPENGLOSS_FILENAME,
     Lexicon,
     default_opengloss_lexicon,
 )
@@ -307,12 +306,17 @@ class TestRelatedTyped:
 
 
 class TestDefaultLexicon:
-    """The bundled OpenGloss lexicon must be loadable via the default helper."""
+    """The bundled OpenGloss lexicon must be loadable via the default helper.
+
+    These tests no longer skip when the legacy ``<repo>/data/`` filesystem
+    path is empty — the wheel-vendored binary at
+    ``python/kaos_nlp_core/data/opengloss-v1.3.lexicon.bin`` is embedded
+    into ``_rust.abi3.so`` via ``include_bytes!``, so
+    ``default_opengloss_lexicon()`` is guaranteed to succeed in any
+    properly-built install (wheel or editable).
+    """
 
     def test_loads_from_in_repo_data(self):
-        data_path = Path(__file__).resolve().parent.parent / "data" / OPENGLOSS_FILENAME
-        if not data_path.exists():
-            pytest.skip("OpenGloss data file not present in repo")
         lex = default_opengloss_lexicon()
         assert len(lex) > 100_000
         assert lex.contains("contract")
@@ -321,17 +325,11 @@ class TestDefaultLexicon:
         assert lex.contains("hypothesis")
 
     def test_cached(self):
-        data_path = Path(__file__).resolve().parent.parent / "data" / OPENGLOSS_FILENAME
-        if not data_path.exists():
-            pytest.skip("OpenGloss data file not present in repo")
         lex1 = default_opengloss_lexicon()
         lex2 = default_opengloss_lexicon()
         assert lex1 is lex2
 
     def test_load_default_static_method(self):
-        data_path = Path(__file__).resolve().parent.parent / "data" / OPENGLOSS_FILENAME
-        if not data_path.exists():
-            pytest.skip("OpenGloss data file not present in repo")
         lex = Lexicon.load_default()
         assert len(lex) > 100_000
 

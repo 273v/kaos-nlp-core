@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 
 from kaos_nlp_core.concepts import (
@@ -12,11 +10,22 @@ from kaos_nlp_core.concepts import (
     Concept,
     extract_concepts,
 )
-from kaos_nlp_core.lexicon import OPENGLOSS_FILENAME, Lexicon
+from kaos_nlp_core.lexicon import Lexicon, default_opengloss_lexicon
 
 
 def _opengloss_available() -> bool:
-    return (Path(__file__).resolve().parent.parent / "data" / OPENGLOSS_FILENAME).is_file()
+    """True if the OpenGloss lexicon can be loaded via the default helper.
+
+    Now that the binary is embedded into ``_rust.abi3.so`` via
+    ``include_bytes!``, this should always return True in a properly
+    built install. Kept as a guard for editable/dev builds where someone
+    might be running against a stale ``_rust.so``.
+    """
+    try:
+        default_opengloss_lexicon()
+    except (FileNotFoundError, ValueError, OSError):
+        return False
+    return True
 
 
 # ── Synthetic lexicon — guaranteed to work without OpenGloss ─────────────
