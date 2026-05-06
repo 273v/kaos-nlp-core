@@ -1,0 +1,60 @@
+# Patent
+
+## Title
+Downlink user equipment selection
+
+
+## Abstract
+
+Aspects of the disclosure relate to a selection scheme implemented by a
+scheduler in a multiple-input multiple-output (MIMO) network to identify which
+users to schedule simultaneously during the same time slot. For downlink
+communications and a particular frequency wholeband or sub-band, the scheduler
+can determine downlink channel information using uplink channel information
+for channels between base stations and UEs. The scheduler can then determine a
+strength of the channels using the downlink channel information, order the UEs
+using a fairness metric based on the channel strengths, and compute one or
+more QR decompositions to identify whether a spatial dimension of a UE is
+roughly or approximately orthogonal to spatial dimension(s) of other UEs
+selected to be served during a time slot being scheduled. If the spatial
+dimensions are roughly or approximately orthogonal, the scheduler selects the
+UE to be served at the same time as other UEs already selected.
+
+
+
+## Background
+### CROSS-REFERENCE TO RELATED APPLICATIONS
+
+This application is a continuation of U.S. patent application Ser. No.
+16/900,674, entitled “DOWNLINK USER EQUIPMENT SELECTION” and filed on Jun. 12,
+2020, which is a continuation of U.S. patent application Ser. No. 16/397,954,
+entitled “DOWNLINK USER EQUIPMENT SELECTION” and filed on Apr. 29, 2019, the
+entire disclosures of which are hereby incorporated by reference herein.
+
+### BACKGROUND
+
+### Technical Field
+
+Embodiments of this disclosure relate to wireless communication systems, such
+as cooperative multiple-input multiple output wireless communication systems.
+
+### Description of Related Technology
+
+The types of modern computing devices continues to increase along with the
+differing and dynamic needs of each device. The wireless communication systems
+providing services to such devices are facing increasing constraints on
+resources and demands for quality and quantities of service. Accordingly,
+improvements in providing wireless communication services, such as in a
+multiple-input multiple-output system, are desired.
+
+### SUMMARY
+
+One aspect of the disclosure provides a network system comprising a plurality
+of transmit antenna elements of one or more serving nodes. The network system
+further comprises a scheduler in communication with the plurality of transmit
+antenna elements, the scheduler comprising a processor and computer-executable
+instructions, where the computer-executable instructions, when executed by the
+processor, cause the scheduler to: determine downlink channel information for
+channels between a plurality of receive antenna elements associated with a
+plurality of user equipment (UEs) and the plurality of transmit antenna
+elements; determine, for each receive antenna element in the plurality, a

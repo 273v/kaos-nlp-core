@@ -1,0 +1,80 @@
+Burnout Intervention Planning Guide
+
+This planning guide is part of the training Understanding and Preventing Burnout among Public Health Workers: Guidance for Public Health Leaders. It is designed to help you identify key demands, resources, and opportunities for change at each level of the IGLOO model. To get started, think about your target population for a possible burnout prevention intervention. This is generally the work group, team, or department you supervise, manage, or lead. Once you have a work unit in mind, respond to the questions and prompts provided. 
+
+Instructions
+
+
+Part 1 is designed to help you focus on identifying key demands, resources, and demand-resource gaps. You can then find ways to address these gaps at multiple levels. To use this tool, consider the question in each row. For each question, consider influences that impact your workers at each level of the IGLOO framework (individual, group, leader, organization, and overarching context). Each level has a corresponding column in the table. Consider each box for every question, even if you do not necessarily identify an idea/thought for every single level. 
+
+For Part 2, focus on one or two strategies that you have identified to reduce burnout risk. Reflect on these strategies and provide more detail regarding how you can put each strategy into action. The questions provided in that section will help you to identify the key design elements and contextual considerations that can impact the success of your intervention. 
+
+You can complete this guide on your own as a leader, manager, or supervisor. However, we also suggest gathering input from individual workers, work teams, and other leaders in the organization to avoid missing any areas of concern or areas of opportunity. You could even incorporate this into a team meeting as a group brainstorming activity. 
+
+Example
+
+
+To help you to have a general idea of how this tool can work, we have filled in an example on pages 2 through 4 based on the following scenario:
+
+The supervisor of a community health division within a city health department wants to reduce burnout risks among the workers they manage. There are a lot of passionate, engaged workers in this unit, but recent turnover and rejected funding requests have put a damper on motivation. Many are putting in extra hours and trying to find creative solutions to make their programs successful but feel unappreciated. 
+
+Using the tool
+
+
+Once you review this example and the Module 10 materials, you can try this activity yourself. A blank copy of this planning guide is provided for your use below. For more information, visit Module 10 of the training. 
+
+Part 1: Burnout Intervention Planning Guide (Example)
+
+
+ | Individual | Group | Leader/ Manager/ Supervisor | Organization | Overarching Context
+What demands are experienced most frequently or are most difficult to manage? | A very difficult demand is a high workload; There’s a lot of work to do with staff changes and many workers are putting in extra hours. | Following staff changes, a frequent demand is poor communication and coordination. New team members have not learned fully how to work together. | A difficult demand from the leader level is unclear expectations or poor delegation of responsibilities since staff members have changed. | At the organization level, insufficient staffing and organizational constraints from technology systems that are not user friendly are difficult demands. | In the broader context, an insufficient understanding of what this team is doing and lack of community commitment can be difficult demands.
+What key resources are needed to meet the difficult/frequent demands? | An individual level resource could be taking more time for rest and restorative breaks to avoid burning out with such high workload demands. | The team may benefit from the resource of role clarity and broader social support to help one another navigate change. | An important resource from the leader could be clear expectations and performance feedback. Feedback can help workers know when they need to slow down or when they need to pick up the slack to help their team. | Investment in user-friendly technology is one clear resource. Perceived organizational support can also let workers know they are appreciated and cared for. This broad resource can help when practical resources, like staffing, are limited. | Community support from some key community members can be an important resource. These resources can even be leveraged to be creative in developing programs when funds are limited.
+Why is there a gap between the frequent/difficult demands and needed resources? | Workers do not feel they have enough time for breaks and breaks are not encouraged because others are working after hours too. This resource of rest seems inaccessible and even selfish when everyone is working extra hard. | Because the workload has not eased up, the team really has not taken time to slow down and integrate new team members. New staff are given minimal information because the existing staff are swamped. | This supervisor actually does not have a lot of experience with seeking or giving feedback. There are also limited opportunities with the current scheduling of work and traditional performance review practices. | Staffing is driven by a number of factors – there is not enough funding to hire as many people as are needed and there is a lack of qualified applicants. The software systems could change, but the health department leaders are worried that now is not the time for a big change. | Most workers in this department really do not have time to connect with the community like they would want. They organize programs and initiatives on limited resources and cannot adequately promote or connect with influential community members.
+How can you address gaps? (Demand reduction, resource enhancement, or both) | Demand reduction: Remove or reduce work tasks. Consider if there are any work tasks that are unnecessary or could be reallocated to be less burdensome.Resource enhancement: Encourage taking restorative breaks (group walks, social lunch). Options that may be led by the leader or organization include increased staffing and facilitating job crafting. | Demand reduction: If workers are not taking the time to train new staff well, it may be important to reallocate duties so proper training can occur. Related to this, consider whether work tasks need to be simplified, realigned, or otherwise redesigned.Resource Enhancement: Create opportunities for these new workers to get to know one another through a social outing. Use meeting time to intentionally review responsibilities to gain more clarity. Training could also be provided for productive team communication. | Resource enhancement: Provide leader training on feedback seeking and delivery strategies. This could be done through an external consultant or internal resources, if available. A time for feedback can also be incorporated into regular meetings – this could include recognizing someone who has gone the extra mile and bringing attention to areas for the team to improve. | Demand Reduction/Resource Enhancement: You can remove constraints and create a resource by researching and purchasing a better software system. A better system could help new employees get up to speed quicker and existing employees save time. Adding more staff is another key way to increase resources and reduce demands on current workers. | Resource Enhancement: To make sure workers are better connected, incorporate spending time with community partners into formal job duties and allow time for it. Being more integrated with key community members could help to offer more successful programming, which also helps workers see the benefits of their work. The broader organization can also invest in better publicizing the work that the health department does so that the community has more awareness.
+
+Part 2: Design Elements and Contextual Considerations (Example)
+
+
+From the strategies you identified to address demand-resource gaps, pick one or two that seem most realistic to implement in your work environment. Use the following questions to further establish how you could go about making the desired changes. 
+
+Essential Design Elements
+
+1. What are you going to change? 
+
+A better software system will be introduced, which is more user-friendly and better addresses worker needs (increasing an available resource and reducing constraint-related demands). In introducing this system, training will be provided to units that will use this tool (increasing worker knowledge and efficacy to use the resource).
+
+1. Who will be impacted? 
+
+All workers in the department are going to be affected because they all use this software system. This change will also impact interdependent work units. If services are temporarily slower as workers adjust, the new system could also impact community members. Do not neglect to consider specifically how the effectiveness of any solution can only be enhanced if careful consideration is given up front to fitting the people who will have to work with the new tool, system, or process (in this case, new software system).
+
+1. Why is this intervention so important (and to whom)? 
+
+The constraints caused by a poor software system are avoidable demands that can impact workers over time. A user-friendly system is a resource that can improve efficiency. It also allows them to focus on tasks they find the most meaningful, such as their program design and implementation for the community. There will be an initial cost in time and money for this system, but the increase in efficiency will be worth it. This will also help to speed up the process of onboarding new employees. Consider not just the general importance of addressing this concern, but try to identify whom in particular is most affected by and cares most about these constraints being resolved.
+
+1. How will this intervention work? 
+
+The intervention will reduce constraint-related demands and increase resources by having reliable and user-friendly software. Data entry will be easier when it is integrated with other systems the team is using. The new software will also speed up training time for new hires who had trouble with the old system. This intervention will also signal that the organization cares about making work easier rather than unnecessarily cumbersome. Training will help to increase effectiveness by making sure workers have the necessary knowledge and confidence to use the new system. 
+
+1. Where will recipients experience this intervention? 
+
+Supervisors will incorporate the training into regular professional development activities, which typically occur during the winter months when this team has fewer programs running. This intervention will primarily reduce stress at work, which may benefit their non-work life too. 
+
+Additional Considerations
+
+1. What additional resources would your team/organization need to successfully address the demand-resource gap you are targeting?
+
+We will need time in the workday devoted to training on this new technology. We will need the monetary resources to purchase this software system. 
+
+1. Whose support do you need to make this happen? 
+
+The workers themselves will need to be supportive and ready for change. The overall organization needs to support implementation (e.g., allowing time, communicating why change is occurring). 
+
+1. If this intervention were successful, what would change? 
+
+Processing time/data collection time should increase. Workers should experience less frustration from constraint-related demands. 
+
+1. How can you measure what you expect to change before, during, and after your intervention is underway? 
+
+We can analyze data already being gathered, such as processing time. We can also assess employee reactions through group discussions and/or surveys. 
+
+1. When could you start? What is your timeline to implement this strategy? 

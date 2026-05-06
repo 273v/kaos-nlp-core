@@ -1,0 +1,9 @@
+This is a first paragraph.  It has multiple sentences and because of formatting, there should even be multiple spans.
+
+This is a second paragraph.  It doesn’t have different formatting, but it is followed by a list:
+
+- This is a first list item.
+- This is a second item.
+
+Now you should note that there is a comment that spans all three of those above.
+

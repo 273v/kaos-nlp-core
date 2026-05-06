@@ -1,0 +1,33 @@
+Title: A Study of Boilerplate Detection in Legal Corpora
+
+Abstract
+
+We present a method for detecting recurring boilerplate in legal documents.
+The approach uses MinHash signatures and band-row LSH to cluster similar lines.
+
+1. Introduction
+
+Legal documents contain repeated headers and footers that obscure content.
+Existing methods rely on exact string matching which fails on OCR drift.
+
+2. Methods
+
+2.1 MinHash signatures
+
+We compute a 64-permutation MinHash over 4-character shingles per line.
+
+2.2 LSH bands and rows
+
+The signature is partitioned into 8 bands of 8 rows each.
+
+3. Results
+
+Recall on the test corpus reached 0.92 across 500 documents.
+
+4. Conclusion
+
+Boilerplate detection benefits from signature-based clustering.
+
+References
+
+Broder, A. (1997). On the resemblance and containment of documents.
