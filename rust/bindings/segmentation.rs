@@ -85,8 +85,7 @@ impl PyPunktParameters {
     #[staticmethod]
     fn default_embedded(py: Python<'_>) -> PyResult<Self> {
         let result = py.detach(|| {
-            PunktParameters::from_compressed_bytes(EMBEDDED_PUNKT_BYTES)
-                .map_err(|e| e.to_string())
+            PunktParameters::from_compressed_bytes(EMBEDDED_PUNKT_BYTES).map_err(|e| e.to_string())
         });
         result
             .map(|p| Self { inner: Arc::new(p) })

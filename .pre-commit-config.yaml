@@ -15,18 +15,49 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
+      # Auto-fixers that must NOT touch verbatim test fixtures (CUAD
+      # contracts, public-record SEC filings, government documents, etc.)
+      # because rewriting whitespace / line endings invalidates the SHA-256
+      # pins in tests/fixtures/*/README.md and changes the bytes our
+      # extractor regression suite consumes.
+      #
+      # Also skip the embedded compressed binary (gzip + zstd) since
+      # whitespace-fix on a binary would corrupt it.
       - id: trailing-whitespace
-        exclude: ^LICENSE$
+        exclude: |
+          (?x)^(
+            LICENSE
+            |tests/fixtures/(cuad-sample|multi_domain)/.*\.(txt|json|jsonl)
+            |python/kaos_nlp_core/data/opengloss-.*\.bin
+            |python/kaos_nlp_core/models/default\.npkt\.gz
+          )$
       - id: end-of-file-fixer
-        exclude: ^LICENSE$
+        exclude: |
+          (?x)^(
+            LICENSE
+            |tests/fixtures/(cuad-sample|multi_domain)/.*\.(txt|json|jsonl)
+            |python/kaos_nlp_core/data/opengloss-.*\.bin
+            |python/kaos_nlp_core/models/default\.npkt\.gz
+          )$
       - id: check-yaml
       - id: check-toml
       - id: check-merge-conflict
       - id: check-case-conflict
       - id: check-added-large-files
-        args: [--maxkb=500]
+        # The wheel-vendored OpenGloss binary (~32 MB v3 KNC, embedded
+        # via include_bytes! into _rust.so) is the largest committed
+        # artifact. Bump the cap above that size so the check still
+        # catches accidental large-file commits without flagging the
+        # known asset.
+        args: [--maxkb=40000]
       - id: mixed-line-ending
         args: [--fix=lf]
+        exclude: |
+          (?x)^(
+            tests/fixtures/(cuad-sample|multi_domain)/.*\.(txt|json|jsonl)
+            |python/kaos_nlp_core/data/opengloss-.*\.bin
+            |python/kaos_nlp_core/models/default\.npkt\.gz
+          )$
       - id: detect-private-key
 
   # ───────────── ruff (format + lint) ─────────────
