@@ -11,7 +11,7 @@ import pytest
 from kaos_nlp_core.lexicon import Lexicon
 from kaos_nlp_core.structures import InvertedIndex
 
-FIXTURE_DIR = Path(__file__).parent / "fixtures"
+FIXTURE_DIR = Path(__file__).parent.parent / "fixtures"
 
 
 def tokenize_doc(text: str) -> list[str]:

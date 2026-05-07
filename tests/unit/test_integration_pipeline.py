@@ -32,7 +32,7 @@ from kaos_nlp_core.segmentation import (
 )
 from kaos_nlp_core.structures import SpanIndex
 
-_FIXTURE = Path(__file__).parent / "fixtures" / "usc.jsonl"
+_FIXTURE = Path(__file__).parent.parent / "fixtures" / "usc.jsonl"
 
 
 @pytest.fixture

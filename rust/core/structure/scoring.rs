@@ -693,7 +693,9 @@ fn is_citation_shaped_token(token: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::segmentation::{detect_boilerplate, extract_line_records, BoilerplateOptions};
+    use crate::core::segmentation::{
+        detect_boilerplate, extract_line_records, parse_enumerator, BoilerplateOptions,
+    };
 
     fn score_with_defaults(text: &str) -> Vec<HeadingFeatureVector> {
         let records = extract_line_records(text);
@@ -711,7 +713,7 @@ mod tests {
                 if r.blank {
                     None
                 } else {
-                    crate::core::segmentation::parse_enumerator(r.stripped_text(text))
+                    parse_enumerator(r.stripped_text(text))
                 }
             })
             .collect();
@@ -805,7 +807,7 @@ mod tests {
                 if r.blank {
                     None
                 } else {
-                    crate::core::segmentation::parse_enumerator(r.stripped_text(text))
+                    parse_enumerator(r.stripped_text(text))
                 }
             })
             .collect();
@@ -1033,16 +1035,16 @@ mod tests {
                 if r.blank {
                     None
                 } else {
-                    crate::core::segmentation::parse_enumerator(r.stripped_text(&text))
+                    parse_enumerator(r.stripped_text(&text))
                 }
             })
             .collect();
-        let runs = crate::core::segmentation::detect_boilerplate(
+        let runs = detect_boilerplate(
             &records,
             &text,
-            crate::core::segmentation::BoilerplateOptions {
+            BoilerplateOptions {
                 skip_near_dup: true,
-                ..crate::core::segmentation::BoilerplateOptions::default()
+                ..BoilerplateOptions::default()
             },
         );
         let opts = ScoringOptions::default();

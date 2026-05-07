@@ -494,7 +494,7 @@ class TestSegmentationThreading:
         """PunktParameters loaded from model file should survive pickle."""
         from pathlib import Path
 
-        path = Path(__file__).parent / ".." / "models" / "default.npkt.gz"
+        path = Path(__file__).parent / ".." / ".." / "models" / "default.npkt.gz"
         if not path.exists():
             pytest.skip("default.npkt.gz model not available")
 

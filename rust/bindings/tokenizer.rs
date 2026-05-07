@@ -335,7 +335,7 @@ fn tokenize_words_batch(
 }
 
 /// Register tokenizer submodule.
-pub fn register_module(parent: &Bound<'_, PyModule>) -> PyResult<()> {
+pub(crate) fn register_module(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     let m = PyModule::new(parent.py(), "tokenizer")?;
 
     m.add_class::<PyTokenizer>()?;

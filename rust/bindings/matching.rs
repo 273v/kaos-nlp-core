@@ -607,7 +607,7 @@ impl PyFstMap {
 }
 
 /// Register matching submodule.
-pub fn register_module(parent: &Bound<'_, PyModule>) -> PyResult<()> {
+pub(crate) fn register_module(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     let m = PyModule::new(parent.py(), "matching")?;
 
     // Substring

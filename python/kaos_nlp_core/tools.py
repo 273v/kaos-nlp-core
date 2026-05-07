@@ -1,10 +1,11 @@
 """MCP tool definitions for kaos-nlp-core.
 
-Provides 11 MCP tools for high-performance NLP primitives: tokenization,
+Provides 17 MCP tools for high-performance NLP primitives: tokenization,
 segmentation, string comparison, pattern matching, BM25 search, fuzzy
-hashing, near-duplicate detection, text analysis, and text quality
-scoring. All tools operate on raw text (no runtime/context required) and
-are read-only except build-index.
+hashing, near-duplicate detection, text analysis, text quality scoring,
+lexicon lookup/expansion, token frequency, concept extraction, line
+labeling, and document outline. All tools operate on raw text (no
+runtime/context required) and are read-only except build-index.
 
 All kaos-core imports are lazy (inside register_nlp_tools) so that
 kaos-nlp-core can be used standalone without kaos-core installed.
@@ -81,7 +82,7 @@ _COMPARE_ALGORITHMS = [
 def register_nlp_tools(runtime: Any) -> int:
     """Register kaos-nlp-core MCP tools with a KaosRuntime.
 
-    All 10 tools are defined inside this function to keep kaos-core imports
+    All 17 tools are defined inside this function to keep kaos-core imports
     lazy. Returns the count of registered tools.
 
     Args:

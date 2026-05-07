@@ -37,7 +37,7 @@ pub trait RollingHashValue:
     + Default
     + std::ops::Add<Output = Self>
     + std::ops::Sub<Output = Self>
-    + std::cmp::PartialEq
+    + PartialEq
     + std::hash::Hash
 {
     fn wrapping_add(self, rhs: Self) -> Self;

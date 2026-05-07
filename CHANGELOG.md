@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0a2] — 2026-05-07
+
+Audit-driven hardening release covering eight findings (KNC-001 …
+KNC-008) from the independent `kaos-modules/docs/audit-01/kaos-nlp-core.md`
+pass, plus three substantive feature additions queued during the
+intervening cycle.
+
 ### Added
 
 - **Algorithms — fuzzy ranking helpers**: `most_similar(query, choices, …)`
@@ -31,6 +38,80 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `core::segmentation`, so non-Python callers can also use the bundled
   model via `include_bytes!` with no filesystem state. The PyO3 binding
   re-uses the same constant rather than embedding its own copy.
+
+### Fixed
+
+- **README Quick Start now actually runs (KNC-A0).** The 0.1.0a1 example
+  referenced a nonexistent `tokenizer.tokenize_spans()` and treated
+  `tokenize_words()` output (`list[str]`) as objects with a `.text`
+  attribute. Replaced with a verified-runnable block that surfaces the
+  raw-string vs. rich-`TokenSpan` shape distinction explicitly, with
+  literal-output comments captured from a real run.
+- **Default `pytest tests/` no longer hits the live Federal Register API
+  (KNC-004).** Tests reorganized into `tests/unit/` (offline; default
+  testpath) and `tests/integration/` (network/live, opt-in). Added
+  `addopts = [..., "-m", "not network and not live"]` and updated
+  `[tool.pytest.ini_options].testpaths` and `[tool.ty.src].exclude` to
+  match. 1696 unit tests pass; live test only collected with explicit
+  `pytest tests/integration -m "network or integration"`.
+- **`models/__init__.py` declares `__all__` (KNC-005).** Matches the
+  KAOS rule that every `__init__.py` declare its public surface (here:
+  empty, since the package only bundles model bytes via
+  `importlib.resources`).
+- **Tool count metadata corrected to 17 (KNC-007).** `tools.py` module
+  + `register_nlp_tools` docstrings and the upstream
+  `kaos-modules/docs/architecture.md` tool list previously reported
+  10–11 tools; the registry has always contained 17.
+
+### Changed
+
+- **PyO3 typed-pyclass hot-path standard codified (KNC-001 + KNC-002).**
+  `rust/bindings/quality.rs` (`PyCharClassCounts`, `PyWordStats`,
+  `PyQualityRaw`) and `rust/bindings/spans.rs` (`PyTokenSpan`,
+  `PyMatchSpan`, `PyPatternMatchSpan`, `PyRegexMatchSpan`,
+  `PyFstSearchResult`, `PyScoredDoc`, `PyPostingEntry`, `PySegmentHit`)
+  now declare `skip_from_py_object` to silence PyO3 0.28's deprecation
+  diagnostics for cloned `#[pyclass]` types. `cargo clippy --all-targets
+  -- -D warnings` (default features) passes clean again. The dict-at-the-
+  boundary-plus-Python-dataclass pattern remains the default; the
+  hot-path native-pyclass exception is now formally documented in
+  `kaos-modules/docs/oss/30-rust-packaging/pyo3-typed-api.md`.
+- **Rust crate root hardened (KNC-008).** Added the documented warn-lint
+  set (`missing_docs`, `rust_2018_idioms`, `rust_2021_compatibility`,
+  `unreachable_pub`, `unused_qualifications`) at `rust/lib.rs`; the six
+  `clippy::pedantic` lints are wired with `#![allow(...)]` + a
+  `TODO(KNC-008-followup)` marker for a future cleanup pass. Tightened
+  ~14 `pub fn register_module` declarations across `rust/bindings/*.rs`
+  to `pub(crate)` (correct visibility — they're consumed only by
+  `lib.rs`). Audited every `#[pyclass]` for `Sync` compliance and added
+  `#[pymodule(gil_used = false)]` to opt into PyO3's free-threaded
+  contract for Python 3.13t.
+
+### Documentation
+
+- **`[mcp]` extra deferral note (KNC-003).** `kaos-nlp-serve` already
+  prints an actionable install hint when `kaos-core` / `kaos-mcp` are
+  missing; serve.py's import-order is correct (the kaos-core /
+  kaos-mcp guard precedes `from kaos_nlp_core.settings import …`). The
+  README and this changelog now spell out that the `[mcp]` extra
+  remains unpopulated until `kaos-mcp` ships to PyPI (F009 lesson #4 in
+  `kaos-modules/docs/oss/00-overview/decisions.md` — `uv lock` refuses
+  to resolve declared-but-unresolvable extras).
+- **Cargo URL convention clarified (KNC-006).** Per-module-repo
+  manifests legitimately point at per-module URLs
+  (`https://github.com/273v/kaos-nlp-core`, `https://kelvin.legal`).
+  The upstream `cargo-conventions.md` has been updated to mark this as
+  the correct shape under D015 ("two-shape pyproject"); no changes to
+  this repo's `Cargo.toml` were required.
+
+### Known limitations
+
+- **`kaos-nlp-serve` still requires a manual sibling install.** The
+  `[mcp]` optional-dependency extra is reserved but unpopulated because
+  `kaos-mcp` has not yet published to PyPI. Run
+  `pip install kaos-core kaos-mcp` manually before invoking
+  `kaos-nlp-serve`. The extra will be populated in the release that
+  follows kaos-mcp's first PyPI cut.
 
 ## [0.1.0a1] — 2026-05-05
 
@@ -125,5 +206,6 @@ This release is the first to ship under the Apache License 2.0. Earlier
 internal versions were proprietary. The bundled Punkt model (`models/
 default.npkt.gz`) is Apache-2.0 from the NLTK distribution.
 
-[Unreleased]: https://github.com/273v/kaos-nlp-core/compare/v0.1.0a1...HEAD
+[Unreleased]: https://github.com/273v/kaos-nlp-core/compare/v0.1.0a2...HEAD
+[0.1.0a2]: https://github.com/273v/kaos-nlp-core/releases/tag/v0.1.0a2
 [0.1.0a1]: https://github.com/273v/kaos-nlp-core/releases/tag/v0.1.0a1

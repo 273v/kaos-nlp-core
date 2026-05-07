@@ -746,7 +746,7 @@ fn _keep_pickle_helpers_alive(py: Python<'_>) -> PyResult<Py<PyAny>> {
 
 // ─── Module registration ──────────────────────────────────────────────────
 
-pub fn register_module(parent: &Bound<'_, PyModule>) -> PyResult<()> {
+pub(crate) fn register_module(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     let m = PyModule::new(parent.py(), "structure")?;
 
     m.add_class::<PyHeadingFeatureVector>()?;

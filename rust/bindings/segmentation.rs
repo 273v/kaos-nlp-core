@@ -1299,7 +1299,7 @@ fn _force_parse_enumerator_keep_alive(s: &str) -> Option<Enumerator> {
 
 // ─── Module registration ────────────────────────────────────────────────────
 
-pub fn register_module(parent: &Bound<'_, PyModule>) -> PyResult<()> {
+pub(crate) fn register_module(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     let m = PyModule::new(parent.py(), "segmentation")?;
 
     m.add_class::<PyPunktParameters>()?;

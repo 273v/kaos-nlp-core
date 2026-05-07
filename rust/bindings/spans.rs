@@ -360,7 +360,7 @@ impl PySegmentHit {
 
 /// Register the `kaos_nlp_core._rust.spans` submodule with all
 /// typed result pyclasses.
-pub fn register_module(parent: &Bound<'_, PyModule>) -> PyResult<()> {
+pub(crate) fn register_module(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     let m = PyModule::new(parent.py(), "spans")?;
     m.add_class::<PyTokenSpan>()?;
     m.add_class::<PyMatchSpan>()?;

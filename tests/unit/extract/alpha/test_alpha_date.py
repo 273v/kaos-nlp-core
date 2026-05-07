@@ -297,9 +297,10 @@ class TestAlphaSpanShape:
 # contracts in tests/fixtures/cuad-sample/ without an LLM call, the
 # alpha-first sprint hypothesis fails. These tests are the contract.
 
-# tests/extract/alpha/test_alpha_date.py → parents: [0]=alpha, [1]=extract,
-# [2]=tests. Fixtures live under tests/fixtures/ per the docstring above.
-_CUAD_DIR = Path(__file__).resolve().parents[2] / "fixtures" / "cuad-sample"
+# tests/unit/extract/alpha/test_alpha_date.py → parents:
+# [0]=alpha, [1]=extract, [2]=unit, [3]=tests. Fixtures live under
+# tests/fixtures/ per the docstring above.
+_CUAD_DIR = Path(__file__).resolve().parents[3] / "fixtures" / "cuad-sample"
 
 
 class TestCUADAgreementDates:

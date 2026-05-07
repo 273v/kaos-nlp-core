@@ -1148,7 +1148,7 @@ fn span_err_to_py(e: SpanIndexError) -> PyErr {
 }
 
 /// Register structures submodule.
-pub fn register_module(parent: &Bound<'_, PyModule>) -> PyResult<()> {
+pub(crate) fn register_module(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     let m = PyModule::new(parent.py(), "structures")?;
 
     m.add_class::<PySetVocabulary>()?;

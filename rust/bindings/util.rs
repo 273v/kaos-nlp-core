@@ -22,7 +22,7 @@ use pyo3::types::PyBytes;
 ///
 /// Uses a single O(n) pass. NEVER use `text[..byte_pos].chars().count()`
 /// in a loop — that's O(n×m).
-pub fn build_byte_to_char_table(text: &str) -> Option<Vec<usize>> {
+pub(crate) fn build_byte_to_char_table(text: &str) -> Option<Vec<usize>> {
     if text.is_ascii() {
         return None; // ASCII fast path: byte offsets == char offsets
     }
@@ -45,7 +45,7 @@ pub fn build_byte_to_char_table(text: &str) -> Option<Vec<usize>> {
 /// When the table is `None` (ASCII text), returns the byte offset unchanged.
 /// Bounds-checked: clamps to the last valid entry.
 #[inline]
-pub fn byte_to_char(table: &Option<Vec<usize>>, byte_offset: usize) -> usize {
+pub(crate) fn byte_to_char(table: &Option<Vec<usize>>, byte_offset: usize) -> usize {
     match table {
         Some(t) => t[byte_offset.min(t.len() - 1)],
         None => byte_offset,
@@ -56,7 +56,7 @@ pub fn byte_to_char(table: &Option<Vec<usize>>, byte_offset: usize) -> usize {
 ///
 /// Used by the searcher binding where the caller handles the ASCII
 /// fast path at a higher level.
-pub fn build_byte_to_char_table_always(text: &str) -> Vec<usize> {
+pub(crate) fn build_byte_to_char_table_always(text: &str) -> Vec<usize> {
     let mut offsets = Vec::with_capacity(text.len() + 1);
     let mut char_count = 0;
     for (byte_idx, _) in text.char_indices() {
@@ -96,14 +96,19 @@ pub(crate) fn decode_from_slice<T: serde::de::DeserializeOwned>(
 /// Naming kept as `bincode_*` for compatibility with existing call sites;
 /// the underlying codec is postcard since the bincode crate became
 /// unmaintained (RUSTSEC-2025-0141).
-pub fn bincode_getstate<T: serde::Serialize>(py: Python<'_>, obj: &T) -> PyResult<Py<PyAny>> {
+pub(crate) fn bincode_getstate<T: serde::Serialize>(
+    py: Python<'_>,
+    obj: &T,
+) -> PyResult<Py<PyAny>> {
     let bytes =
         encode_to_vec(obj).map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
     Ok(PyBytes::new(py, &bytes).into())
 }
 
 /// Deserialize a serde-compatible struct from PyBytes via postcard.
-pub fn bincode_setstate<T: serde::de::DeserializeOwned>(state: &Bound<'_, PyBytes>) -> PyResult<T> {
+pub(crate) fn bincode_setstate<T: serde::de::DeserializeOwned>(
+    state: &Bound<'_, PyBytes>,
+) -> PyResult<T> {
     decode_from_slice(state.as_bytes())
         .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
 }
@@ -183,7 +188,7 @@ pub(crate) fn zstd_level() -> i32 {
 
 /// Serialize a serde-compatible struct to a file via postcard, prefixed with
 /// the KNC magic + format version. Writes KNC v2 (zstd-compressed payload).
-pub fn save_bincode_to_path<T: serde::Serialize>(obj: &T, path: &str) -> Result<(), String> {
+pub(crate) fn save_bincode_to_path<T: serde::Serialize>(obj: &T, path: &str) -> Result<(), String> {
     let raw = encode_to_vec(obj).map_err(|e| e.to_string())?;
     let compressed =
         zstd::encode_all(raw.as_slice(), zstd_level()).map_err(|e| format!("zstd encode: {e}"))?;
@@ -202,7 +207,9 @@ pub fn save_bincode_to_path<T: serde::Serialize>(obj: &T, path: &str) -> Result<
 /// (default 1 GiB) for v2. **Trust model:** these files are still expected to
 /// come from a trusted source — the size caps and header are integrity / DoS
 /// guards, not a defence against an adversarial author of the underlying types.
-pub fn load_bincode_from_path<T: serde::de::DeserializeOwned>(path: &str) -> Result<T, String> {
+pub(crate) fn load_bincode_from_path<T: serde::de::DeserializeOwned>(
+    path: &str,
+) -> Result<T, String> {
     let metadata = std::fs::metadata(path).map_err(|e| format!("could not stat {path}: {e}"))?;
     let limit = max_load_bytes();
     if metadata.len() > limit {

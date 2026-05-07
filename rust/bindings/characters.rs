@@ -93,7 +93,7 @@ fn first_char(s: &str) -> Option<char> {
     s.chars().next()
 }
 
-pub fn register_module(parent: &Bound<'_, PyModule>) -> PyResult<()> {
+pub(crate) fn register_module(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     let m = PyModule::new(parent.py(), "characters")?;
     m.add_function(wrap_pyfunction!(is_letter, &m)?)?;
     m.add_function(wrap_pyfunction!(is_number, &m)?)?;

@@ -450,7 +450,7 @@ fn compare_batch(
 }
 
 /// Register algorithms submodule.
-pub fn register_module(parent: &Bound<'_, PyModule>) -> PyResult<()> {
+pub(crate) fn register_module(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     let m = PyModule::new(parent.py(), "algorithms")?;
 
     // Edit distance

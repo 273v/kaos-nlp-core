@@ -89,7 +89,7 @@ fn has_emoji(token: &str) -> bool {
     token_properties::has_emoji(token)
 }
 
-pub fn register_module(parent: &Bound<'_, PyModule>) -> PyResult<()> {
+pub(crate) fn register_module(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     let m = PyModule::new(parent.py(), "token_properties")?;
 
     m.add_function(wrap_pyfunction!(classify_token, &m)?)?;

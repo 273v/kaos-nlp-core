@@ -134,13 +134,21 @@ exclude = [
 
 [tool.pytest.ini_options]
 minversion = "8.0"
-testpaths = ["tests"]
+# Default invocation collects only offline unit tests. Live/network tests
+# under tests/integration/ are explicitly opted into via `pytest tests/
+# integration` plus `-m network` or `-m live`. See docs/python/testing.md
+# (KAOS testing standard) and audit finding KNC-004.
+testpaths = ["tests/unit"]
 asyncio_mode = "auto"
 addopts = [
   "-ra",
   "--strict-markers",
   "--strict-config",
   "--benchmark-skip",
+  # Defense-in-depth: even if tests/integration is collected explicitly,
+  # don't run network/live-marked tests unless the caller overrides -m.
+  "-m",
+  "not network and not live",
 ]
 markers = [
   "integration: end-to-end behavior checks",
@@ -167,22 +175,23 @@ select = ["E", "F", "I", "B", "UP", "SIM", "RUF", "C4", "PTH"]
 "tests/bench_normalize.py" = ["RUF001"]
 "tests/bench_boilerplate.py" = ["RUF001"]
 "tests/bench_enumerators.py" = ["RUF001"]
-"tests/test_normalize.py" = ["RUF001"]
-"tests/test_line_records.py" = ["RUF001"]
-"tests/test_boilerplate.py" = ["RUF001", "RUF003"]
-"tests/test_enumerators.py" = ["RUF001", "RUF003"]
+"tests/unit/test_normalize.py" = ["RUF001"]
+"tests/unit/test_line_records.py" = ["RUF001"]
+"tests/unit/test_boilerplate.py" = ["RUF001", "RUF003"]
+"tests/unit/test_enumerators.py" = ["RUF001", "RUF003"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["kaos_nlp_core"]
 
 [tool.ty.src]
 include = ["python/kaos_nlp_core", "tests"]
-# tests/test_retriever_from_corpus.py exercises the kaos-content +
-# kaos-ml-core integration path. Until those siblings publish (Wave 3),
-# the imports are unresolvable from ty's static view AND fail to import
-# at runtime. Re-include this file in 0.1.0a2 once both siblings are on
-# PyPI. Same pattern as kaos-graph's tests/unit/test_programs.py exclude.
-exclude = ["tests/test_retriever_from_corpus.py"]
+# tests/integration/test_retriever_from_corpus.py exercises the
+# kaos-content + kaos-ml-core integration path. Until those siblings
+# publish (Wave 3), the imports are unresolvable from ty's static view
+# AND fail to import at runtime. Re-include this file in 0.1.0a2 once
+# both siblings are on PyPI. Same pattern as kaos-graph's
+# tests/unit/test_programs.py exclude.
+exclude = ["tests/integration/test_retriever_from_corpus.py"]
 
 [tool.uv]
 package = true

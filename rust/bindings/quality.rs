@@ -32,21 +32,21 @@ use crate::core::quality::{
     module = "kaos_nlp_core._rust.quality"
 )]
 #[derive(Clone)]
-pub struct PyCharClassCounts {
-    pub total_chars: u64,
-    pub whitespace: u64,
-    pub alpha: u64,
-    pub digit: u64,
-    pub alphanumeric: u64,
-    pub upper: u64,
-    pub lower: u64,
-    pub punct: u64,
-    pub symbol: u64,
-    pub non_ascii: u64,
-    pub newline: u64,
-    pub line_count: u64,
-    pub paragraph_count: u64,
-    pub char_entropy: f64,
+pub(crate) struct PyCharClassCounts {
+    pub(crate) total_chars: u64,
+    pub(crate) whitespace: u64,
+    pub(crate) alpha: u64,
+    pub(crate) digit: u64,
+    pub(crate) alphanumeric: u64,
+    pub(crate) upper: u64,
+    pub(crate) lower: u64,
+    pub(crate) punct: u64,
+    pub(crate) symbol: u64,
+    pub(crate) non_ascii: u64,
+    pub(crate) newline: u64,
+    pub(crate) line_count: u64,
+    pub(crate) paragraph_count: u64,
+    pub(crate) char_entropy: f64,
 }
 
 /// Token-level statistics.
@@ -57,15 +57,15 @@ pub struct PyCharClassCounts {
     module = "kaos_nlp_core._rust.quality"
 )]
 #[derive(Clone)]
-pub struct PyWordStats {
-    pub num_words: u64,
-    pub unique_words: u64,
-    pub total_word_chars: u64,
-    pub max_freq: u64,
-    pub token_entropy: f64,
-    pub alphabetic_tokens: u64,
-    pub in_lexicon: u64,
-    pub format_tokens: u64,
+pub(crate) struct PyWordStats {
+    pub(crate) num_words: u64,
+    pub(crate) unique_words: u64,
+    pub(crate) total_word_chars: u64,
+    pub(crate) max_freq: u64,
+    pub(crate) token_entropy: f64,
+    pub(crate) alphabetic_tokens: u64,
+    pub(crate) in_lexicon: u64,
+    pub(crate) format_tokens: u64,
 }
 
 /// Combined raw-metrics result returned by `analyze_text`.
@@ -76,9 +76,9 @@ pub struct PyWordStats {
     module = "kaos_nlp_core._rust.quality"
 )]
 #[derive(Clone)]
-pub struct PyQualityRaw {
-    pub chars: PyCharClassCounts,
-    pub words: PyWordStats,
+pub(crate) struct PyQualityRaw {
+    pub(crate) chars: PyCharClassCounts,
+    pub(crate) words: PyWordStats,
 }
 
 fn chars_to_pyclass(c: &CharClassCounts) -> PyCharClassCounts {
@@ -191,7 +191,7 @@ fn entropy(counts: Vec<u64>) -> f64 {
 
 // ── Module registration ────────────────────────────────────────────────────
 
-pub fn register_module(parent: &Bound<'_, PyModule>) -> PyResult<()> {
+pub(crate) fn register_module(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     let m = PyModule::new(parent.py(), "quality")?;
     m.add_class::<PyCharClassCounts>()?;
     m.add_class::<PyWordStats>()?;

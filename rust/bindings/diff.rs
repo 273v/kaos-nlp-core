@@ -195,7 +195,7 @@ fn py_diff_documents(
     changes_to_pylist(py, &a_owned, &b_owned, &changes)
 }
 
-pub fn register_module(parent: &Bound<'_, PyModule>) -> PyResult<()> {
+pub(crate) fn register_module(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     let m = PyModule::new(parent.py(), "diff")?;
     m.add_function(wrap_pyfunction!(py_diff_documents, &m)?)?;
 

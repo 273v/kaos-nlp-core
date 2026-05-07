@@ -41,19 +41,40 @@ Platform coverage: Linux x86_64 (manylinux + musllinux), Linux aarch64
 ```python
 from kaos_nlp_core import tokenizer, algorithms
 
-# SIMD-accelerated tokenization
-tokens = tokenizer.tokenize_words("kaos-nlp-core ships fast NLP primitives.")
-print([t.text for t in tokens])
+# Two output shapes for tokenization:
+#   tokenize_words → list[str]        — just the surface forms (fastest)
+#   tokenize       → list[TokenSpan]  — .text / .start / .end when you
+#                                       need character offsets back into
+#                                       the source string
+words = tokenizer.tokenize_words("kaos-nlp-core ships fast NLP primitives.")
+print(words)
+# ['kaos-nlp-core', 'ships', 'fast', 'NLP', 'primitives']
 
-# String similarity
+for s in tokenizer.tokenize("kaos-nlp-core ships fast NLP primitives.")[:3]:
+    print(f"{s.start}-{s.end}: {s.text!r}")
+# 0-13: 'kaos-nlp-core'
+# 14-19: 'ships'
+# 20-24: 'fast'
+
+# Multi-byte safe (CJK + emoji) — offsets are CHARACTER offsets, not bytes
+for s in tokenizer.tokenize("東京 emoji 😀 test"):
+    print(f"{s.start}-{s.end}: {s.text!r}")
+# 0-2: '東京'
+# 3-8: 'emoji'
+# 9-10: '😀'
+# 11-15: 'test'
+
+# Algorithms always return rich typed results
 result = algorithms.levenshtein("kitten", "sitting")
-print(result.distance)  # 3
-
-# Multi-byte safe (CJK, emoji, etc.)
-spans = tokenizer.tokenize_spans("東京 emoji 😀 test")
-for span in spans:
-    print(f"{span.start}-{span.end}: {span.text!r}")
+print(f"distance={result.distance} similarity={result.similarity:.4f}")
+# distance=3.0 similarity=0.5714
 ```
+
+The `_words` shortcut exists wherever skipping offsets is meaningful work
+(tokenization). Everywhere else — segmentation (`segment_sentences`,
+`segment_paragraphs`, `segment_lines`), pattern matching, similarity
+algorithms — the API only ships the rich typed shape, because the
+metadata is the value.
 
 ## Concepts
 
@@ -100,11 +121,12 @@ Every command supports `--json` for machine-readable output. CLI search
 reads both the native persisted index format (KNC) and legacy `.json`
 bundles.
 
-Note: 11 MCP tools are registered by `register_nlp_tools()` and become
-available with `pip install kaos-nlp-core[mcp]` once the `kaos-mcp`
-companion package publishes (planned for `0.1.0a2`). Until then,
-`kaos-nlp-serve` exits with an actionable install hint if `kaos-core`
-or `kaos-mcp` are missing.
+Note: 17 MCP tools are registered by `register_nlp_tools()`. Until
+`0.1.0a2`, the `[mcp]` extra is reserved but unpopulated — manually run
+`pip install kaos-core kaos-mcp` before using `kaos-nlp-serve`. Once
+siblings publish to PyPI, `pip install kaos-nlp-core[mcp]` will cover
+the full install. Until then `kaos-nlp-serve` exits with an actionable
+install hint if `kaos-core` or `kaos-mcp` are missing.
 
 ## Compatibility & status
 

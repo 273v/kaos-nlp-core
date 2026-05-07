@@ -54,7 +54,7 @@ class TestPunktTokenizerWithModel:
     def legal_tokenizer(self):
         """Tokenizer with provided legal abbreviations."""
         params = PunktParameters.load(
-            str(Path(__file__).parent / ".." / "models" / "default.npkt.gz")
+            str(Path(__file__).parent / ".." / ".." / "models" / "default.npkt.gz")
         )
         return PunktTokenizer(params)
 
@@ -203,7 +203,7 @@ class TestPunktParameters:
 
     def test_json_roundtrip(self):
         # Load the default model and roundtrip it
-        path = Path(__file__).parent / ".." / "models" / "default.npkt.gz"
+        path = Path(__file__).parent / ".." / ".." / "models" / "default.npkt.gz"
         if path.exists():
             params = PunktParameters.load(str(path))
             json_str = params.to_json()
@@ -211,7 +211,7 @@ class TestPunktParameters:
             assert restored.num_abbreviations == params.num_abbreviations
 
     def test_save_load(self):
-        path = Path(__file__).parent / ".." / "models" / "default.npkt.gz"
+        path = Path(__file__).parent / ".." / ".." / "models" / "default.npkt.gz"
         if path.exists():
             params = PunktParameters.load(str(path))
             with tempfile.NamedTemporaryFile(suffix=".npkt.gz", delete=False) as f:
@@ -252,7 +252,7 @@ class TestPunktTrainer:
 
     def test_load_abbreviations_from_json(self):
         trainer = PunktTrainer()
-        path = Path(__file__).parent / ".." / "data" / "legal_abbreviations.json"
+        path = Path(__file__).parent / ".." / ".." / "data" / "legal_abbreviations.json"
         if path.exists():
             count = trainer.load_abbreviations_from_json(str(path))
             assert count > 0
@@ -286,7 +286,7 @@ class TestPunktTrainer:
 class TestPunktTrainerOnCorpus:
     @pytest.fixture(scope="class")
     def war_and_peace_text(self):
-        path = Path(__file__).parent / "fixtures" / "war_and_peace.txt"
+        path = Path(__file__).parent.parent / "fixtures" / "war_and_peace.txt"
         if not path.exists():
             pytest.skip("War and Peace fixture not available")
         return path.read_text()

@@ -1,3 +1,11 @@
+//! Pure-Rust algorithm/data-structure core (no PyO3 dependency).
+//!
+//! Items here are public so the `bindings/` layer (and downstream Rust
+//! consumers, if any) can call them directly. Per-module documentation
+//! lives inside each submodule.
+
+#![allow(missing_docs)]
+
 pub mod algorithms;
 pub mod characters;
 pub mod ctph;
