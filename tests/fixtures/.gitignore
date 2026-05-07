@@ -1,0 +1,20 @@
+# Downloaded test fixture files
+# Gutenberg texts: regenerate with ./download_fixtures.sh
+*.txt
+# HuggingFace datasets: regenerate with download_hf_fixtures.py
+*.jsonl
+
+# Multi-domain validation corpus: hand-labeled gold + sourced text.
+# These are intellectual work product (not regenerable via download
+# scripts) — the .gold.jsonl files were hand-labeled, and the .txt
+# slices are pinned alongside them so the validator is reproducible
+# even when upstream PDFs / DOCX move. Build script:
+# `scripts/build_multi_domain_corpus.py`.
+!multi_domain/**
+
+# CUAD sample: 5 contracts + golden JSONL annotations from
+# Atticus Project's CUAD v1 (CC-BY-4.0). Hypothesis-falsifier
+# fixtures for the alpha extractors (see test_alpha_date.py /
+# test_alpha_entity.py). Total ~50 KB; checked in for
+# reproducibility — no download script.
+!cuad-sample/**

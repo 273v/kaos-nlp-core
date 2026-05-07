@@ -1,0 +1,28 @@
+{
+  "test_command": [
+    "sh",
+    "-lc",
+    "cargo test --no-default-features --lib && uv run maturin develop --release && uv run pytest -m 'not live and not network and not slow' --junitxml={artifacts}/pytest-junit.xml --cov=kaos_nlp_core --cov-branch --cov-report=term-missing --cov-report=xml:{artifacts}/coverage.xml tests/"
+  ],
+  "test_result_format": "cargo_test",
+  "test_result_globs": [
+    "{artifacts}/pytest-junit.xml"
+  ],
+  "coverage_result_globs": [
+    "{artifacts}/coverage.xml"
+  ],
+  "build_command": [
+    "uv",
+    "build",
+    "--wheel",
+    "--out-dir",
+    "{artifacts}"
+  ],
+  "artifact_globs": [
+    "{artifacts}/*.whl"
+  ],
+  "compatibility_policy": "host-linux",
+  "requires_python": ">=3.13",
+  "timeout_seconds": 1800,
+  "log_limit_bytes": 262144
+}

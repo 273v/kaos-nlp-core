@@ -1,0 +1,188 @@
+[build-system]
+requires = ["maturin>=1.8,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "kaos-nlp-core"
+# Single source of truth: Cargo.toml [package].version. Maturin reads
+# Cargo SemVer (e.g. "0.1.0-alpha.1") and emits PEP 440-normalized
+# wheel metadata (e.g. "0.1.0a1"). Avoids dual-source drift per
+# docs/oss/30-rust-packaging/version-coupling.md (Option C).
+dynamic = ["version"]
+description = "High-performance NLP primitives for the Kelvin Agentic OS — SIMD string ops, multi-pattern matching, FST dictionaries, sentence segmentation, BM25 retrieval, fuzzy hashing"
+readme = "README.md"
+requires-python = ">=3.13"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [
+  { name = "273 Ventures LLC", email = "it@273ventures.com" },
+]
+keywords = [
+  "nlp",
+  "tokenizer",
+  "bm25",
+  "fst",
+  "rust",
+  "pyo3",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Rust",
+  "Topic :: Scientific/Engineering :: Information Analysis",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+  "Topic :: Text Processing :: Linguistic",
+  "Typing :: Typed",
+]
+
+[project.scripts]
+kaos-nlp = "kaos_nlp_core.cli:main"
+kaos-nlp-serve = "kaos_nlp_core.serve:main"
+
+# At v0.1.0a1 the only resolvable extra is none — kaos-mcp / kaos-content /
+# kaos-ml-core / kaos-nlp-transformers all live in monorepo-only siblings
+# that haven't published yet. The [mcp] extra (and friends) re-arrives in
+# 0.1.0a2 once those siblings land on PyPI. uv lock is strict and refuses
+# to resolve declared-but-unresolvable extras (per docs/oss/00-overview/
+# decisions.md F009 lesson #4), so they're not declared here today.
+[project.optional-dependencies]
+# Reserved namespace; populated in 0.1.0a2.
+
+[project.urls]
+Homepage = "https://kelvin.legal"
+Documentation = "https://docs.kelvin.legal"
+Repository = "https://github.com/273v/kaos-nlp-core"
+Issues = "https://github.com/273v/kaos-nlp-core/issues"
+Changelog = "https://github.com/273v/kaos-nlp-core/blob/main/CHANGELOG.md"
+
+[dependency-groups]
+# Mirrors the kaos-graph 0.1.0a1 dev-group shape:
+#   * cryptography pin matches kaos-core's CVE-driven floor
+#     (CVE-2026-34073, CVE-2026-39892).
+#   * python-multipart pin closes the audit-A2-#9 transitive.
+#   * maturin lives here so CI's `uv run maturin develop` step works
+#     (per F009 lesson #2; build-system requires path is build-time only).
+#   * httpx is needed for the network-tier test against the Federal
+#     Register API (tests/test_quality_live.py).
+#
+# At v0.1.0a1 the dev group does NOT pin `kaos-content`, `kaos-mcp`,
+# `kaos-ml-core`, or `kaos-nlp-transformers` because none of them are on
+# PyPI yet (per F009 lesson #4). The single test that exercises the
+# sibling integration (tests/test_retriever_from_corpus.py) is excluded
+# from ty + pytest collection at this release; it re-arrives in 0.1.0a2
+# alongside the [mcp] / [tabular] / [programs] / [transformers] extras
+# once the siblings ship.
+dev = [
+  "kaos-core>=0.1.0a1",
+  "cryptography>=46.0.7",
+  "httpx>=0.28.0",
+  "maturin>=1.8,<2.0",
+  "pytest>=9.0.3",
+  "pytest-asyncio>=1.3.0",
+  "pytest-benchmark>=5.1.0",
+  "pytest-cov>=7.1.0",
+  "python-multipart>=0.0.25",
+  "ruff>=0.15.12",
+  "ty>=0.0.34,<0.1",
+]
+
+[tool.maturin]
+python-source = "python"
+module-name = "kaos_nlp_core._rust"
+# abi3-py313: ship one wheel per OS/arch covering Python 3.13+ all minors.
+# Mirror in Cargo.toml's pyo3 feature list. Per F009 lesson #1.
+features = ["pyo3/extension-module", "pyo3/abi3-py313"]
+# Bundle the Punkt sentence-segmenter model + LICENSE/NOTICE/CHANGELOG
+# in sdist so the source build retains everything wheel callers need.
+include = [
+  { path = "models/**", format = "sdist" },
+  { path = "LICENSE", format = "sdist" },
+  { path = "NOTICE", format = "sdist" },
+  { path = "CHANGELOG.md", format = "sdist" },
+  { path = "SECURITY.md", format = "sdist" },
+]
+# Keep runtime/scratch artifacts out of the sdist + wheel.
+#
+# python/kaos_nlp_core/data/opengloss-*.bin and
+# python/kaos_nlp_core/models/default.npkt.gz are excluded from the WHEEL
+# because the Rust crate `include_bytes!`-bakes those bytes directly into
+# `_rust.abi3.so`. Shipping the files separately would duplicate ~44 MB
+# inside every wheel. The files ship in the SDIST so source builds (which
+# need the bytes at compile time via include_bytes!) work without
+# re-running the build script.
+exclude = [
+  { path = ".pytest_cache/**", format = "sdist" },
+  { path = ".ruff_cache/**", format = "sdist" },
+  { path = ".venv/**", format = "sdist" },
+  { path = "htmlcov/**", format = "sdist" },
+  { path = "target/**", format = "sdist" },
+  { path = "data/opengloss-*.bin", format = "sdist" },  # 238 MB v1 lexicon — top-level dev artifact
+  { path = "tests/fixtures/*.jsonl", format = "sdist" },  # HF/Gutenberg fixtures
+  { path = "tests/fixtures/*.txt", format = "sdist" },
+  { path = "target/**", format = "wheel" },
+  # Bytes already inside _rust.abi3.so via include_bytes! — exclude from
+  # wheel to avoid duplication.
+  { path = "python/kaos_nlp_core/data/opengloss-*.bin", format = "wheel" },
+  { path = "python/kaos_nlp_core/models/default.npkt.gz", format = "wheel" },
+]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = [
+  "-ra",
+  "--strict-markers",
+  "--strict-config",
+  "--benchmark-skip",
+]
+markers = [
+  "integration: end-to-end behavior checks",
+  "unit: focused unit checks",
+  "slow: tests that take >1s to run",
+  "network: requires public-internet access (no API key); excluded by default in CI",
+  "live: credential-gated provider/API calls; excluded by default in CI",
+]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF", "C4", "PTH"]
+
+[tool.ruff.lint.per-file-ignores]
+# Test + bench fixtures intentionally use Unicode look-alikes (FULLWIDTH
+# parens for CJK fixtures, NBSP for normalization tests, smart quotes /
+# em-dashes for legal-text round-trip). The whole point is to exercise
+# our Unicode-handling primitives, so RUF001's "ambiguous character"
+# warning is noise here.
+"tests/bench_lines.py" = ["RUF001"]
+"tests/bench_normalize.py" = ["RUF001"]
+"tests/bench_boilerplate.py" = ["RUF001"]
+"tests/bench_enumerators.py" = ["RUF001"]
+"tests/test_normalize.py" = ["RUF001"]
+"tests/test_line_records.py" = ["RUF001"]
+"tests/test_boilerplate.py" = ["RUF001", "RUF003"]
+"tests/test_enumerators.py" = ["RUF001", "RUF003"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["kaos_nlp_core"]
+
+[tool.ty.src]
+include = ["python/kaos_nlp_core", "tests"]
+# tests/test_retriever_from_corpus.py exercises the kaos-content +
+# kaos-ml-core integration path. Until those siblings publish (Wave 3),
+# the imports are unresolvable from ty's static view AND fail to import
+# at runtime. Re-include this file in 0.1.0a2 once both siblings are on
+# PyPI. Same pattern as kaos-graph's tests/unit/test_programs.py exclude.
+exclude = ["tests/test_retriever_from_corpus.py"]
+
+[tool.uv]
+package = true

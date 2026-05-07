@@ -1,0 +1,27 @@
+Boilerplate Detection
+
+Boilerplate detection is the automated identification of recurring text in document collections.
+
+Background
+
+Many documents contain repeated headers and footers that obscure content.
+
+Approaches
+
+Two main strategies dominate the literature.
+
+Hash-based clustering
+
+Exact-string fingerprints group identical lines.
+
+Signature-based clustering
+
+MinHash signatures handle near-duplicates.
+
+See also
+
+Document deduplication.
+
+References
+
+Broder, A. (1997).

@@ -1,0 +1,70 @@
+# Build artifacts
+/target/
+/dist/
+/build/
+*.so
+*.dylib
+*.pyd
+*.egg-info/
+*.whl
+*.d
+
+# Test/runtime artifacts (must NOT ship in sdist or wheel)
+/.kaos-vfs/
+/.pytest_cache/
+/.ruff_cache/
+/.coverage
+/htmlcov/
+.benchmarks/
+target/criterion/
+
+# Virtualenvs and env files
+/.venv/
+/venv/
+/.env
+/.env.*
+!/.env.example
+
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+
+# Editor / OS clutter
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Compiled extension (built by maturin into the source tree)
+python/kaos_nlp_core/_rust.cpython-*.so
+
+# uv.lock — NOT committed at v0.1.0a1 because [project.optional-dependencies]
+# would otherwise reference not-yet-published sibling packages
+# (kaos-mcp, kaos-content, kaos-llm-core, kaos-nlp-transformers). uv lock
+# is strict: every declared extra must resolve. Per F009 lesson #4
+# (decisions.md) those extras stay declared in 0.1.0a2 once Wave 3 publishes.
+uv.lock
+
+# Large untracked data — opengloss lexicon (~358 MB) and HF/Gutenberg
+# fixtures are downloaded at test time, never committed.
+data/opengloss-*.bin
+data/opengloss-*.lexicon.bin
+tests/fixtures/*.jsonl
+tests/fixtures/*.txt
+!tests/fixtures/download_fixtures.sh
+!tests/fixtures/download_hf_fixtures.py
+
+# NOTE: Cargo.lock IS committed (matches kaos-graph + kaos-core convention)
+# so contributors get a reproducible Rust build from a fresh clone. The
+# lock file is not redistributed in the wheel — maturin bundles per
+# [tool.maturin].include only. Earlier drafts of this gitignore listed
+# Cargo.lock; that was wrong for a published Rust+PyO3 project.
+#
+# NOTE: py.typed IS committed. PEP 561 requires py.typed in the package
+# directory (`kaos_nlp_core/py.typed`) for downstream type checkers to
+# recognize the package as typed. Earlier drafts gitignored it; that
+# would have broken consumers of `kaos_nlp_core` types.
