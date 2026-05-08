@@ -17,7 +17,7 @@ jobs:
   # ────────────── lint (Python + Rust) ──────────────
   lint:
     name: Lint
-    runs-on: ubuntu-latest
+    runs-on: kaos-x64-16core
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -56,7 +56,7 @@ jobs:
   # ────────────── pre-commit ──────────────
   pre-commit:
     name: Pre-commit hooks
-    runs-on: ubuntu-latest
+    runs-on: kaos-x64-16core
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -81,7 +81,7 @@ jobs:
   # ────────────── Rust unit tests (pure Rust core) ──────────────
   rust-test:
     name: Rust tests (no PyO3)
-    runs-on: ubuntu-latest
+    runs-on: kaos-x64-16core
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -95,7 +95,7 @@ jobs:
   # ────────────── Python tests (Python × maturin develop) ──────────────
   test:
     name: Test (Python ${{ matrix.python-version }})
-    runs-on: ubuntu-latest
+    runs-on: kaos-x64-16core
     strategy:
       fail-fast: false
       matrix:
@@ -196,7 +196,7 @@ jobs:
   # ────────────── min-deps ──────────────
   min-deps:
     name: Test against minimum dependencies
-    runs-on: ubuntu-latest
+    runs-on: kaos-x64-16core
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -250,7 +250,7 @@ jobs:
   # ────────────── build + wheel smoke test ──────────────
   build:
     name: Build distribution + smoke test
-    runs-on: ubuntu-latest
+    runs-on: kaos-x64-16core
     needs: [lint, test, rust-test]
     steps:
       - name: Checkout

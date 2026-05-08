@@ -23,7 +23,7 @@ jobs:
   # tree is broken we never compile 8 wheels for nothing.
   sdist:
     name: Build sdist + pre-publish QA
-    runs-on: ubuntu-latest
+    runs-on: kaos-x64-16core
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
@@ -171,7 +171,7 @@ jobs:
     name: Publish to PyPI
     needs: [sdist, wheels]
     if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
+    runs-on: kaos-x64-16core
     environment:
       name: pypi
       url: https://pypi.org/p/kaos-nlp-core
@@ -205,7 +205,7 @@ jobs:
     name: Create GitHub Release
     needs: [sdist, wheels]
     if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
+    runs-on: kaos-x64-16core
     permissions:
       contents: write
     steps:
