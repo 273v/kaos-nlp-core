@@ -139,6 +139,15 @@ jobs:
             display-os: windows-x64
             experimental: true
     continue-on-error: ${{ matrix.experimental }}
+    env:
+      # Force Python stdout/stderr to UTF-8. Windows console codepage
+      # defaults to cp1252 ("charmap"), which can't encode the ✓ /
+      # other Unicode characters that some of our scripts print
+      # (HF fixture downloader, scipy logs, etc.) — surfaces as
+      # `UnicodeEncodeError: 'charmap' codec can't encode character`.
+      # No-op on Linux/macOS where stdout is already UTF-8. Lesson
+      # from kaos-nlp-core E2 first-run.
+      PYTHONIOENCODING: utf-8
     steps:
       - name: Checkout
         uses: actions/checkout@v6
