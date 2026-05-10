@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **musllinux wheels (Alpine Linux / musl libc)** dropped from the
+  release.yml matrix. ``kaos_nlp_core-*-cp313-abi3-musllinux_1_2_x86_64.whl``
+  and ``-aarch64.whl`` will not ship on the next release. Rationale:
+  family-consistency. ``kaos-nlp-transformers`` can't ship musllinux
+  (ort's ``download-binaries`` feature pulls Microsoft's official
+  libonnxruntime which is glibc-only); shipping musllinux for
+  ``kaos-nlp-core`` while the downstream ML sibling can't install
+  there creates a fragmented Alpine user experience. The 0.1.0a2
+  release retains its musllinux wheels on PyPI; Alpine users requiring
+  this package standalone should pin ``kaos-nlp-core==0.1.0a2`` until
+  the ML runtime constraint is lifted.
+
 ## [0.1.0a2] — 2026-05-07
 
 Audit-driven hardening release covering eight findings (KNC-001 …

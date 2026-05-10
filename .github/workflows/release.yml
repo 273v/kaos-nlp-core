@@ -95,12 +95,23 @@ jobs:
           retention-days: 30
 
   # ────────────── Wheel matrix ──────────────
-  # 8 wheels per release, per D017 (docs/oss/30-rust-packaging/wheel-matrix.md):
-  #   - Linux x86_64 manylinux + musllinux
-  #   - Linux aarch64 manylinux + musllinux
+  # 5 wheels per release:
+  #   - Linux x86_64 manylinux_2_28
+  #   - Linux aarch64 manylinux_2_28
   #   - macOS arm64
   #   - Windows x86_64
   #   - Windows arm64
+  #
+  # musllinux deliberately skipped to keep the kaos-* family deployment
+  # story consistent. kaos-nlp-transformers can't ship musllinux —
+  # ort/download-binaries pulls Microsoft's official libonnxruntime
+  # which is glibc-only — and shipping kaos-nlp-core / kaos-graph on
+  # Alpine while the downstream sibling can't install creates a
+  # fragmented user experience. Pre-1.0 alpha allows the platform
+  # reduction; downstream Alpine consumers should pin <=0.1.0a2 (the
+  # last release that included musllinux wheels) until either ort
+  # gains musl support or we switch ML runtimes.
+  #
   # macOS x86_64 deliberately skipped (Apple ended Intel sales in 2023).
   wheels:
     name: ${{ matrix.target }} ${{ matrix.linux-tag && '(' || '' }}${{ matrix.linux-tag }}${{ matrix.linux-tag && ')' || '' }}
@@ -113,18 +124,10 @@ jobs:
             target: x86_64-unknown-linux-gnu
             linux-tag: manylinux_2_28
             manylinux: "2_28"
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-musl
-            linux-tag: musllinux_1_2
-            manylinux: musllinux_1_2
           - os: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
             linux-tag: manylinux_2_28
             manylinux: "2_28"
-          - os: ubuntu-24.04-arm
-            target: aarch64-unknown-linux-musl
-            linux-tag: musllinux_1_2
-            manylinux: musllinux_1_2
           - os: macos-14
             target: aarch64-apple-darwin
             linux-tag: ""
