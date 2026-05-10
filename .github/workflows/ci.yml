@@ -140,13 +140,20 @@ jobs:
             experimental: true
     continue-on-error: ${{ matrix.experimental }}
     env:
-      # Force Python stdout/stderr to UTF-8. Windows console codepage
-      # defaults to cp1252 ("charmap"), which can't encode the ✓ /
-      # other Unicode characters that some of our scripts print
-      # (HF fixture downloader, scipy logs, etc.) — surfaces as
-      # `UnicodeEncodeError: 'charmap' codec can't encode character`.
-      # No-op on Linux/macOS where stdout is already UTF-8. Lesson
-      # from kaos-nlp-core E2 first-run.
+      # PEP 540 "UTF-8 Mode": forces every Python invocation in this
+      # job to use UTF-8 for stdin/stdout/stderr AND `open()` default
+      # encoding AND filesystem encoding. Windows runners default to
+      # the cp1252 codepage which crashes on:
+      #   * `UnicodeEncodeError: 'charmap' codec can't encode character ✓`
+      #     (HF fixture downloader prints Unicode status markers — E2
+      #     first-run).
+      #   * `UnicodeDecodeError: 'charmap' codec can't decode byte 0x9d`
+      #     when tests `open(...)` Gutenberg fixture text files without
+      #     an explicit encoding= (E2 retry).
+      # Setting PYTHONUTF8=1 fixes both and is a no-op on Linux/macOS.
+      # `PYTHONIOENCODING=utf-8` is belt-and-suspenders for older
+      # interpreters or Python distributions that don't honor PEP 540.
+      PYTHONUTF8: "1"
       PYTHONIOENCODING: utf-8
     steps:
       - name: Checkout
