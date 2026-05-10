@@ -42,13 +42,6 @@ Thumbs.db
 # Compiled extension (built by maturin into the source tree)
 python/kaos_nlp_core/_rust.cpython-*.so
 
-# uv.lock — NOT committed at v0.1.0a1 because [project.optional-dependencies]
-# would otherwise reference not-yet-published sibling packages
-# (kaos-mcp, kaos-content, kaos-llm-core, kaos-nlp-transformers). uv lock
-# is strict: every declared extra must resolve. Per F009 lesson #4
-# (decisions.md) those extras stay declared in 0.1.0a2 once Wave 3 publishes.
-uv.lock
-
 # Large untracked data — opengloss lexicon (~358 MB) and HF/Gutenberg
 # fixtures are downloaded at test time, never committed.
 data/opengloss-*.bin
