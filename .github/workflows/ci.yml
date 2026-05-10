@@ -94,19 +94,49 @@ jobs:
 
   # ────────────── Python tests (Python × maturin develop) ──────────────
   test:
-    name: Test (Python ${{ matrix.python-version }})
-    runs-on: kaos-x64-16core
+    name: Test (${{ matrix.display-os }} / Python ${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    # Linux x64 (self-hosted) keeps the full 4-Python-version matrix
+    # for fast PR feedback. macOS-arm64 + Windows-x64 each get a single
+    # Python 3.13 leg, gated experimental until proven stable. Mirrors
+    # the pattern landed in kaos-core ci.yml (E1) and kaos-graph (E3).
+    #
+    # The fixture-download steps below use bash scripts (`bash
+    # tests/fixtures/download_fixtures.sh` and an `ls -lh` verifier).
+    # `shell: bash` on those steps points the runner at Git Bash on
+    # Windows, which is preinstalled on `windows-latest`. The
+    # actions/cache key is OS-namespaced implicitly so each OS's first
+    # run downloads its own fixture cache — subsequent runs hit it.
     strategy:
       fail-fast: false
       matrix:
         include:
+          # ── Linux x64 (self-hosted) — full Python matrix ──
           - python-version: "3.13"
+            os: kaos-x64-16core
+            display-os: linux-x64
             experimental: false
           - python-version: "3.14"
+            os: kaos-x64-16core
+            display-os: linux-x64
             experimental: false
           - python-version: "3.14t"
+            os: kaos-x64-16core
+            display-os: linux-x64
             experimental: true
           - python-version: "3.15"
+            os: kaos-x64-16core
+            display-os: linux-x64
+            experimental: true
+          # ── macOS arm64 — single Python smoke ──
+          - python-version: "3.13"
+            os: macos-14
+            display-os: macos-arm64
+            experimental: true
+          # ── Windows x64 — single Python smoke ──
+          - python-version: "3.13"
+            os: windows-latest
+            display-os: windows-x64
             experimental: true
     continue-on-error: ${{ matrix.experimental }}
     steps:
@@ -120,6 +150,7 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
+          cache-suffix: test-${{ matrix.display-os }}-py${{ matrix.python-version }}
 
       - name: Install Python ${{ matrix.python-version }}
         run: uv python install --preview ${{ matrix.python-version }}
@@ -158,6 +189,11 @@ jobs:
 
       - name: Download HF fixtures (usc / edgar_agreements / patents)
         if: steps.fixture-cache.outputs.cache-hit != 'true'
+        # `shell: bash` so the multi-line `\` continuation parses on
+        # Windows (PowerShell would read `\` as a unary operator).
+        # Git Bash is preinstalled on `windows-latest`. Lesson from
+        # kaos-core E1 first-run.
+        shell: bash
         run: |
           uv run --python 3.13 \
             --with huggingface_hub,tokenizers,datasets \
@@ -165,9 +201,14 @@ jobs:
 
       - name: Download Project Gutenberg fixtures (war_and_peace / shakespeare)
         if: steps.fixture-cache.outputs.cache-hit != 'true'
+        # The script is `#!/usr/bin/env bash`; explicit `shell: bash`
+        # keeps the invocation portable across Git Bash on Windows.
+        shell: bash
         run: bash tests/fixtures/download_fixtures.sh
 
       - name: Verify fixtures present (cache + downloads)
+        # `ls -lh` is bash-only; pin the shell so Windows uses Git Bash.
+        shell: bash
         run: |
           ls -lh tests/fixtures/usc.jsonl \
                  tests/fixtures/edgar_agreements.jsonl \
@@ -176,6 +217,7 @@ jobs:
                  tests/fixtures/shakespeare.txt
 
       - name: Run tests with coverage
+        shell: bash
         run: |
           uv run pytest \
             -m "not live and not network and not slow" \
@@ -189,7 +231,7 @@ jobs:
         if: always() && !matrix.experimental
         uses: actions/upload-artifact@v7
         with:
-          name: coverage-${{ matrix.python-version }}
+          name: coverage-${{ matrix.display-os }}-py${{ matrix.python-version }}
           path: coverage.xml
           retention-days: 14
 
