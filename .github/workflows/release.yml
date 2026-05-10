@@ -162,6 +162,49 @@ jobs:
           rust-toolchain: stable
           sccache: "true"
 
+      - name: Smoke test the wheel
+        # Runs on EVERY built wheel: each matrix leg's runner IS the
+        # target platform, so importing the just-built wheel exercises
+        # the cdylib on its actual native ABI. Catches PE/ELF/Mach-O
+        # dynamic-linker issues, ABI mismatches, and missing-runtime-
+        # dep surprises that the build step alone can't see.
+        # publish-pypi gates on `needs: [sdist, wheels]`, so any smoke
+        # failure now blocks the release rather than shipping a broken
+        # wheel.
+        #
+        # `shell: bash` so the multi-line `run:` and `[[ -f ... ]]`
+        # work on Windows (Git Bash is preinstalled). PYTHONUTF8 +
+        # PYTHONIOENCODING handle cp1252 default codepage on Windows.
+        # Lessons from the kaos-* family ci.yml cross-OS work.
+        shell: bash
+        env:
+          PYTHONUTF8: "1"
+          PYTHONIOENCODING: utf-8
+        run: |
+          # Portable venv-binary detection: Unix uses bin/, Windows uses
+          # Scripts/. Bash on Git for Windows respects either path style.
+          python -m venv .smoke-venv
+          if [[ -f .smoke-venv/bin/python ]]; then
+            PY=".smoke-venv/bin/python"
+          else
+            PY=".smoke-venv/Scripts/python"
+          fi
+          "$PY" -m pip install --upgrade pip
+          "$PY" -m pip install dist/*.whl
+          # Top-level package import transitively loads the cdylib via
+          # __init__.py; one of the registered extension types
+          # (Tokenizer) gets touched to confirm the Rust core is alive.
+          "$PY" -c "
+          import kaos_nlp_core as k
+          assert k.__version__, 'version missing from wheel'
+          from kaos_nlp_core.tokenizer import Tokenizer
+          # Round-trip a small input — exercises the Rust core, not just import.
+          tok = Tokenizer(lowercase=True)
+          spans = tok.tokenize('Hello, world.')
+          assert [s.text for s in spans] == ['hello', 'world'], spans
+          print(f'kaos-nlp-core {k.__version__}: smoke OK')
+          "
+
       - name: Upload wheel
         uses: actions/upload-artifact@v7
         with:
