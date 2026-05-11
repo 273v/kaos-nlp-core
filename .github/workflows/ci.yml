@@ -184,7 +184,7 @@ jobs:
       # re-downloads; otherwise it's a free no-op after the first CI run.
       - name: Cache HF + Gutenberg test fixtures
         id: fixture-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             tests/fixtures/usc.jsonl
@@ -276,7 +276,7 @@ jobs:
 
       - name: Cache HF + Gutenberg test fixtures
         id: fixture-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             tests/fixtures/usc.jsonl
