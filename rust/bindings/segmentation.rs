@@ -1183,13 +1183,13 @@ impl PyEnumerator {
 /// Optional `lexicon` selects the word-prefix dictionary used for
 /// `Section / Chapter / Article / …` matching. Accepted values:
 ///
-///     "english_legal_us" (default — anchor for US statutes / EDGAR)
-///     "french_legal"     (Article / Chapitre / Titre / Section / Annexe / Préambule / Livre)
-///     "german_legal"     (Artikel / Kapitel / Titel / Abschnitt / Anhang / Buch / Teil)
-///     "spanish_legal"    (Artículo / Capítulo / Título / Sección / Anexo / Libro / Parte)
-///     "italian_legal"    (Articolo / Capo / Capitolo / Titolo / Sezione / Allegato / Libro)
-///     "portuguese_legal" (Artigo / Capítulo / Título / Secção/Seção / Anexo / Livro / Parte)
-///     "markdown_atx"     (depth from `#` count; H1..H6)
+/// - `"english_legal_us"`: default anchor for US statutes / EDGAR.
+/// - `"french_legal"`: Article / Chapitre / Titre / Section / Annexe / Préambule / Livre.
+/// - `"german_legal"`: Artikel / Kapitel / Titel / Abschnitt / Anhang / Buch / Teil.
+/// - `"spanish_legal"`: Artículo / Capítulo / Título / Sección / Anexo / Libro / Parte.
+/// - `"italian_legal"`: Articolo / Capo / Capitolo / Titolo / Sezione / Allegato / Libro.
+/// - `"portuguese_legal"`: Artigo / Capítulo / Título / Secção/Seção / Anexo / Livro / Parte.
+/// - `"markdown_atx"`: depth from `#` count; H1..H6.
 ///
 /// Pass a list of `(pattern, kind)` tuples via `custom_lexicon` to override
 /// with your own keyword set; if both `lexicon` and `custom_lexicon` are
