@@ -180,9 +180,11 @@ jobs:
         run: uv python install --preview ${{ matrix.python-version }}
 
       - name: Install dependencies
+        continue-on-error: ${{ matrix.experimental }}
         run: uv sync --group dev --python ${{ matrix.python-version }}
 
       - name: Build PyO3 extension (maturin develop --release)
+        continue-on-error: ${{ matrix.experimental }}
         run: uv run maturin develop --release
 
       # ─── Test fixture downloads (cached) ────────────────────────────
@@ -208,10 +210,12 @@ jobs:
       # JSONL files are interpreter-agnostic, so it doesn't matter that
       # they're produced with 3.13.
       - name: Install Python 3.13 (for fixture download tool)
+        continue-on-error: ${{ matrix.experimental }}
         if: steps.fixture-cache.outputs.cache-hit != 'true' && matrix.python-version != '3.13'
         run: uv python install 3.13
 
       - name: Download HF fixtures (usc / edgar_agreements / patents)
+        continue-on-error: ${{ matrix.experimental }}
         if: steps.fixture-cache.outputs.cache-hit != 'true'
         # `shell: bash` so the multi-line `\` continuation parses on
         # Windows (PowerShell would read `\` as a unary operator).
@@ -224,6 +228,7 @@ jobs:
             python tests/fixtures/download_hf_fixtures.py
 
       - name: Download Project Gutenberg fixtures (war_and_peace / shakespeare)
+        continue-on-error: ${{ matrix.experimental }}
         if: steps.fixture-cache.outputs.cache-hit != 'true'
         # The script is `#!/usr/bin/env bash`; explicit `shell: bash`
         # keeps the invocation portable across Git Bash on Windows.
@@ -231,6 +236,7 @@ jobs:
         run: bash tests/fixtures/download_fixtures.sh
 
       - name: Verify fixtures present (cache + downloads)
+        continue-on-error: ${{ matrix.experimental }}
         # `ls -lh` is bash-only; pin the shell so Windows uses Git Bash.
         shell: bash
         run: |
@@ -241,6 +247,7 @@ jobs:
                  tests/fixtures/shakespeare.txt
 
       - name: Run tests with coverage
+        continue-on-error: ${{ matrix.experimental }}
         shell: bash
         run: |
           uv run pytest \
