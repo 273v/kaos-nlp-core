@@ -11,6 +11,19 @@ This product bundles the Punkt sentence tokenizer model (Apache-2.0
 licensed; see models/default.npkt.gz and the original Punkt
 distribution at https://github.com/nltk/nltk_data).
 
+This product includes software whose algorithmic design was adapted
+from the NumKong project (https://github.com/ashvardanian/NumKong),
+copyright 2023 Ash Vardanian, licensed under the Apache License,
+Version 2.0. Specifically, the dense f32 cosine kernels in
+rust/core/similarity/kernels.rs (the fused single-pass dot+norm
+loop, the rsqrt+Newton-Raphson finalisation, and the per-ISA
+dispatch shape) are hand-written Rust ports of patterns in
+NumKong's include/numkong/spatial/{serial,haswell,skylake,neon}.h.
+No NumKong source is bundled or linked at build time; the port is
+a clean-room reimplementation in Rust using std::arch intrinsics.
+See docs/design-similarity-simd.md for the per-function
+provenance map.
+
 This product depends on third-party Rust crates and Python packages
 listed in Cargo.toml and pyproject.toml. License attribution is
 maintained at the SPDX expression level via cargo-deny and pip-licenses

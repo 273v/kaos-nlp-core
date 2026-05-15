@@ -31,8 +31,11 @@ use pyo3::types::PyTuple;
 
 use crate::core::similarity::{
     cosine as core_cosine, cosine_adjacent as core_cosine_adjacent,
-    cosine_one_to_many as core_cosine_one_to_many, l2_normalize_in_place as core_l2_normalize,
-    mmr_select as core_mmr_select, top_k_cosine as core_top_k_cosine, SimilarityError,
+    cosine_adjacent_normalized as core_cosine_adjacent_normalized,
+    cosine_normalized as core_cosine_normalized, cosine_one_to_many as core_cosine_one_to_many,
+    cosine_one_to_many_normalized as core_cosine_one_to_many_normalized,
+    l2_normalize_in_place as core_l2_normalize, mmr_select as core_mmr_select,
+    top_k_cosine as core_top_k_cosine, SimilarityError,
 };
 
 // ----------------------------------------------------------------------------
@@ -63,6 +66,26 @@ fn cosine(a: PyReadonlyArray1<'_, f32>, b: PyReadonlyArray1<'_, f32>) -> PyResul
     let a_slice = a.as_slice()?;
     let b_slice = b.as_slice()?;
     core_cosine(a_slice, b_slice).map_err(map_err)
+}
+
+// ----------------------------------------------------------------------------
+// cosine_normalized(a, b)
+// ----------------------------------------------------------------------------
+
+/// Cosine similarity assuming both inputs are unit-norm.
+///
+/// Pre-normalised fast path: skips both squared-norm computations and
+/// the final ``sqrt`` — cosine of two unit-norm vectors is their dot
+/// product, clamped to ``[-1, 1]``.
+///
+/// **Caller contract**: ``a`` and ``b`` must already be unit-norm.
+/// The function does not verify this; violating the contract silently
+/// returns a value that does not correspond to the true cosine.
+#[pyfunction]
+fn cosine_normalized(a: PyReadonlyArray1<'_, f32>, b: PyReadonlyArray1<'_, f32>) -> PyResult<f32> {
+    let a_slice = a.as_slice()?;
+    let b_slice = b.as_slice()?;
+    core_cosine_normalized(a_slice, b_slice).map_err(map_err)
 }
 
 // ----------------------------------------------------------------------------
@@ -101,6 +124,38 @@ fn cosine_one_to_many<'py>(
 }
 
 // ----------------------------------------------------------------------------
+// cosine_one_to_many_normalized(query, matrix)
+// ----------------------------------------------------------------------------
+
+/// Cosine of one **unit-norm** query against every row of a 2-D matrix
+/// of **unit-norm** rows.
+///
+/// Pre-normalised fast path: each row reduces to a single SIMD dot
+/// product clamped to ``[-1, 1]``. Saves both the per-call query norm
+/// and every per-row row norm.
+///
+/// **Caller contract**: both ``query`` and every row of ``matrix``
+/// must be unit-norm. Use this when the upstream embedder already
+/// L2-normalises (which the kaos-nlp-transformers ``EmbeddingModel``
+/// does — SemanticChunker and ExtractiveRanker should route through
+/// here).
+#[pyfunction]
+fn cosine_one_to_many_normalized<'py>(
+    py: Python<'py>,
+    query: PyReadonlyArray1<'_, f32>,
+    matrix: PyReadonlyArray2<'_, f32>,
+) -> PyResult<Bound<'py, PyArray1<f32>>> {
+    let query_slice = query.as_slice()?;
+    let m_view = matrix.as_array();
+    let dim = m_view.shape()[1];
+    let matrix_slice = matrix.as_slice()?;
+    let result = py
+        .detach(|| core_cosine_one_to_many_normalized(query_slice, matrix_slice, dim))
+        .map_err(map_err)?;
+    Ok(result.into_pyarray(py))
+}
+
+// ----------------------------------------------------------------------------
 // cosine_adjacent(matrix)
 // ----------------------------------------------------------------------------
 
@@ -123,6 +178,31 @@ fn cosine_adjacent<'py>(
     let matrix_slice = matrix.as_slice()?;
     let result = py
         .detach(|| core_cosine_adjacent(matrix_slice, dim))
+        .map_err(map_err)?;
+    Ok(result.into_pyarray(py))
+}
+
+// ----------------------------------------------------------------------------
+// cosine_adjacent_normalized(matrix)
+// ----------------------------------------------------------------------------
+
+/// Adjacent-row cosine on a matrix of **unit-norm** rows.
+///
+/// Pre-normalised fast path: each adjacent pair reduces to a single
+/// SIMD dot product clamped to ``[-1, 1]``.
+///
+/// **Caller contract**: every row of ``matrix`` must be unit-norm.
+/// SemanticChunker (kaos-nlp-transformers) feeds unit-norm embeddings;
+/// this is its fast path.
+#[pyfunction]
+fn cosine_adjacent_normalized<'py>(
+    py: Python<'py>,
+    matrix: PyReadonlyArray2<'_, f32>,
+) -> PyResult<Bound<'py, PyArray1<f32>>> {
+    let dim = matrix.as_array().shape()[1];
+    let matrix_slice = matrix.as_slice()?;
+    let result = py
+        .detach(|| core_cosine_adjacent_normalized(matrix_slice, dim))
         .map_err(map_err)?;
     Ok(result.into_pyarray(py))
 }
@@ -238,8 +318,11 @@ pub(crate) fn register_module(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     let m = PyModule::new(parent.py(), "similarity")?;
 
     m.add_function(wrap_pyfunction!(cosine, &m)?)?;
+    m.add_function(wrap_pyfunction!(cosine_normalized, &m)?)?;
     m.add_function(wrap_pyfunction!(cosine_one_to_many, &m)?)?;
+    m.add_function(wrap_pyfunction!(cosine_one_to_many_normalized, &m)?)?;
     m.add_function(wrap_pyfunction!(cosine_adjacent, &m)?)?;
+    m.add_function(wrap_pyfunction!(cosine_adjacent_normalized, &m)?)?;
     m.add_function(wrap_pyfunction!(top_k_cosine, &m)?)?;
     m.add_function(wrap_pyfunction!(mmr_select, &m)?)?;
     m.add_function(wrap_pyfunction!(l2_normalize_in_place, &m)?)?;

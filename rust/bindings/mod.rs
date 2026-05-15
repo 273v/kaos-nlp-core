@@ -8,6 +8,7 @@ pub(crate) mod aggregation;
 pub(crate) mod algorithms;
 pub(crate) mod characters;
 pub(crate) mod chunking;
+pub(crate) mod content_type;
 pub(crate) mod diff;
 pub(crate) mod hashing;
 pub(crate) mod lexicon;

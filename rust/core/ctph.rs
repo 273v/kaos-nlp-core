@@ -260,7 +260,7 @@ impl CTPHDigest {
     /// Common piece sizes: 2 (1-byte), 4 (2-byte), 8 (4-byte), 16 (8-byte).
     fn infer_piece_hex_len(block_len: usize) -> usize {
         for &candidate in &[8, 16, 4, 2] {
-            if block_len % candidate == 0 {
+            if block_len.is_multiple_of(candidate) {
                 return candidate;
             }
         }
