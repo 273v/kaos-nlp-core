@@ -15,6 +15,18 @@ def cosine(
     empty input or length mismatch.
     """
 
+def cosine_normalized(
+    a: np.ndarray,
+    b: np.ndarray,
+) -> float:
+    """Cosine of two **unit-norm** float32 vectors (fast path).
+
+    Skips both squared-norm computations; cosine of two unit-norm
+    vectors is their dot product, clamped to ``[-1, 1]``.
+    **Caller contract**: both ``a`` and ``b`` must already be
+    unit-norm — the function does not verify this.
+    """
+
 def cosine_one_to_many(
     query: np.ndarray,
     matrix: np.ndarray,
@@ -26,6 +38,19 @@ def cosine_one_to_many(
     Returns a 1-D float32 array of length ``n_rows``.
     """
 
+def cosine_one_to_many_normalized(
+    query: np.ndarray,
+    matrix: np.ndarray,
+) -> np.ndarray:
+    """Cosine of a **unit-norm** query against every row of a 2-D matrix
+    of **unit-norm** rows (fast path).
+
+    Each row reduces to a single SIMD dot product, clamped to
+    ``[-1, 1]``. **Caller contract**: ``query`` and every row of
+    ``matrix`` must already be unit-norm — the function does not
+    verify this.
+    """
+
 def cosine_adjacent(
     matrix: np.ndarray,
 ) -> np.ndarray:
@@ -33,6 +58,16 @@ def cosine_adjacent(
 
     Returns a 1-D float32 array of length ``n_rows - 1``; empty when
     ``n_rows < 2``.
+    """
+
+def cosine_adjacent_normalized(
+    matrix: np.ndarray,
+) -> np.ndarray:
+    """Adjacent-row cosine on a matrix of **unit-norm** rows (fast path).
+
+    Each adjacent pair reduces to a single SIMD dot product, clamped
+    to ``[-1, 1]``. **Caller contract**: every row of ``matrix`` must
+    already be unit-norm — the function does not verify this.
     """
 
 def top_k_cosine(

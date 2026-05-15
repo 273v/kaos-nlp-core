@@ -46,47 +46,62 @@
 //! Backend
 //! -------
 //!
-//! All compute paths route through the portable f32-with-f64-accumulator
-//! kernels in [`crate::core::similarity::kernels`]. The kernels use 8
-//! parallel `f64` accumulators per loop chunk so LLVM
-//! auto-vectorises them to AVX2 (Haswell/Skylake), NEON (aarch64),
-//! and the scalar fallback on the rest -- no external SIMD crate is
-//! pulled in, and Windows wheels (both `x86_64-pc-windows-msvc` and
-//! `aarch64-pc-windows-msvc`) build cleanly. The 8-lane reduction
-//! also gives a pairwise-style `O(log N)` error bound on the
-//! accumulator, which keeps cosine within machine f32 epsilon for
-//! the dimensionalities we serve in production (256-1536).
+//! All compute routes through hand-written `std::arch`-intrinsic
+//! kernels at [`crate::core::similarity::kernels`] with runtime ISA
+//! dispatch:
 //!
-//! Earlier alpha drafts used the `numkong` Apache-2.0 crate (vendored
-//! C kernels with runtime AVX-512 / SVE dispatch). That dependency
-//! was dropped at v0.1.0a5 because the vendored C
-//! (1) `#include`s `immintrin.h` unconditionally, which MSVC rejects
-//! on `aarch64-pc-windows-msvc`, and
-//! (2) ships a `DllMain` symbol that collides with `stringzilla`
-//! (which we already link for SIMD substring matching).
-//! Both break the Windows wheel matrix. The portable-SIMD path here
-//! follows the *design* of NumKong's compensated kernel without
-//! taking the vendored-C dependency.
+//! * **x86_64 AVX-512F** — 16-wide f32 FMA when `avx512f` is present
+//!   (Skylake-X+, Ice Lake / Sapphire Rapids servers, Zen 4+).
+//! * **x86_64 AVX2 + FMA** — 8-wide f32 FMA when `avx2 + fma` are
+//!   present (Haswell+, Zen+; this is the universal desktop/server
+//!   baseline today).
+//! * **aarch64 NEON** — 4-wide f32 FMA via `vfmaq_f32` (mandatory on
+//!   every aarch64 wheel target).
+//! * **Scalar fallback** — pure-Rust 4-lane FMA loop for any other
+//!   target. LLVM still auto-vectorises this on its own; the explicit
+//!   intrinsic kernels are just the authoritative path.
+//!
+//! The kernel pattern (fused single-pass `(dot, ‖a‖², ‖b‖²)`,
+//! `rsqrt`+Newton-Raphson finalisation) is ported from NumKong
+//! (Apache-2.0); see `kernels.rs` and `docs/design-similarity-simd.md`
+//! for the file-and-function-level provenance.
+//!
+//! Earlier alpha drafts depended on the `numkong` Apache-2.0 crate
+//! (vendored C kernels). That dependency was dropped at v0.1.0a5
+//! because the vendored C (a) `#include`s `immintrin.h` unconditionally,
+//! which MSVC rejects on `aarch64-pc-windows-msvc`, and (b) ships a
+//! `DllMain` symbol that collides with `stringzilla`. Both break the
+//! Windows wheel matrix. The current hand-rolled `std::arch` kernels
+//! port NumKong's algorithm without the vendored-C baggage.
+//!
+//! Pre-normalised fast path
+//! ------------------------
+//!
+//! Callers that supply unit-norm rows should use the `_normalized`
+//! variants ([`cosine_one_to_many_normalized`],
+//! [`cosine_adjacent_normalized`], [`cosine_normalized`]): cosine of
+//! two unit-norm vectors is their dot product, so we skip both
+//! `‖query‖²` and `‖row‖²` and the final `sqrt`. SemanticChunker and
+//! ExtractiveRanker in `kaos-nlp-transformers` always feed unit-norm
+//! embeddings — they should route through the `_normalized` path.
 //!
 //! Numerical guarantees
 //! --------------------
 //!
-//! * **f32 cosine accumulates in f64** via 8 parallel accumulators
-//!   that LLVM auto-vectorises (see [`crate::core::similarity::kernels`]).
-//!   The 8-lane reduction gives a pairwise-style `O(log N)` error
-//!   bound -- comparable to Neumaier compensation for the
-//!   dimensionalities we serve, without the branch that compensated
-//!   accumulators introduce inside the hot loop. End-to-end relative
-//!   error stays inside machine f32 epsilon (~`1e-7`).
-//! * **NaN inputs** are not silently propagated — every function
-//!   returns `Err` (or skips, for batch) so callers can decide policy.
-//! * **Determinism** — same inputs, same SIMD lane width → same bits.
-//!   No reduction-tree reordering across runs, so cosine of a known
-//!   pair round-trips bit-exactly across the wheel matrix.
+//! * f32 inputs, f32 SIMD accumulators inside the loop, `f64`
+//!   finalisation (sqrt + divide) for bit-stability of the cosine
+//!   value across the ISA-dispatch buckets.
+//! * Cosine clipped to `[-1.0, 1.0]`.
+//! * Zero-norm vectors yield cosine `0.0`.
+//! * NaN inputs are not silently propagated — every function returns
+//!   `Err` (or skips, for batch) so callers can decide policy.
+//! * **Determinism**: same inputs, same dispatched ISA → bit-identical
+//!   output. Across ISA buckets the cosine is identical up to f32
+//!   rounding (the SIMD reduction tree differs in lane count, so the
+//!   sum order differs by ≤ log(lane_width) ULP).
 //!
 //! See also the design rationale in
-//! `docs/standards/rust-pyo3-design-and-architecture.md` and the
-//! consumer-pattern survey at
+//! `docs/design-similarity-simd.md` and the consumer-pattern survey at
 //! `kaos-llm-core/docs/summarization-classification-plan.md` (the
 //! "Where dense similarity is needed" section).
 
@@ -98,7 +113,8 @@ pub mod mmr;
 pub mod topk;
 
 pub use dense::{
-    cosine, cosine_adjacent, cosine_one_to_many, l2_normalize_in_place, SimilarityError,
+    cosine, cosine_adjacent, cosine_adjacent_normalized, cosine_normalized, cosine_one_to_many,
+    cosine_one_to_many_normalized, l2_normalize_in_place, SimilarityError,
 };
 pub use mmr::mmr_select;
 pub use topk::top_k_cosine;

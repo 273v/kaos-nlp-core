@@ -63,7 +63,7 @@ pub fn mmr_select(
     if dim == 0 {
         return Err(SimilarityError::DimensionMismatch { a: dim, b: 1 });
     }
-    if matrix.len() % dim != 0 {
+    if !matrix.len().is_multiple_of(dim) {
         return Err(SimilarityError::RaggedBatch {
             row: matrix.len() / dim,
             expected: dim,

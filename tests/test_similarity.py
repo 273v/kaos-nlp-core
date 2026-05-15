@@ -15,7 +15,10 @@ from kaos_nlp_core.similarity import (
     TopKResult,
     cosine,
     cosine_adjacent,
+    cosine_adjacent_normalized,
+    cosine_normalized,
     cosine_one_to_many,
+    cosine_one_to_many_normalized,
     l2_normalize_in_place,
     mmr_select,
     top_k_cosine,
@@ -144,6 +147,93 @@ class TestCosineAdjacent:
         ref = np.einsum("ij,ij->i", Mn[:-1], Mn[1:])
         rust = cosine_adjacent(M)
         assert np.allclose(rust, ref, atol=1e-5)
+
+
+# ---------------------------------------------------------------------------
+# *_normalized fast paths — verify they match the generic path on
+# unit-norm inputs and the docstring contract.
+# ---------------------------------------------------------------------------
+
+
+def _unit_norm(v: np.ndarray) -> np.ndarray:
+    n = np.linalg.norm(v)
+    return v / (n if n > 0 else 1.0)
+
+
+class TestCosineNormalized:
+    def test_matches_generic_on_unit_norm_inputs(self) -> None:
+        rng = np.random.default_rng(0xCAFE)
+        a = _unit_norm(rng.standard_normal(384).astype(np.float32))
+        b = _unit_norm(rng.standard_normal(384).astype(np.float32))
+        assert cosine_normalized(a, b) == pytest.approx(cosine(a, b), abs=1e-5)
+
+    def test_identical_unit_vector_is_one(self) -> None:
+        v = _unit_norm(np.array([3.0, 4.0], dtype=np.float32))
+        assert cosine_normalized(v, v) == pytest.approx(1.0, abs=1e-6)
+
+    def test_clipped_to_unit_interval(self) -> None:
+        # If a caller violates the contract slightly (sub-unit-norm
+        # inputs), we still clamp.
+        v = np.array([0.5, 0.5, 0.5, 0.5], dtype=np.float32)  # norm = 1.0
+        assert -1.0 <= cosine_normalized(v, v) <= 1.0
+
+    def test_dim_mismatch_raises(self) -> None:
+        a = np.array([1.0, 0.0], dtype=np.float32)
+        b = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+        with pytest.raises(ValueError):
+            cosine_normalized(a, b)
+
+
+class TestCosineOneToManyNormalized:
+    def test_matches_generic_on_unit_norm_inputs(self) -> None:
+        rng = np.random.default_rng(0xBEEF)
+        M = rng.standard_normal((100, 384)).astype(np.float32)
+        M /= np.linalg.norm(M, axis=1, keepdims=True)
+        q = _unit_norm(rng.standard_normal(384).astype(np.float32))
+        fast = cosine_one_to_many_normalized(q, M)
+        generic = cosine_one_to_many(q, M)
+        assert fast.shape == (100,)
+        assert fast.dtype == np.float32
+        assert np.allclose(fast, generic, atol=1e-5)
+
+    def test_matches_numpy_matmul_on_unit_norm_inputs(self) -> None:
+        # On unit-norm rows, cosine == M @ q exactly (clamped).
+        rng = np.random.default_rng(0xF00D)
+        M = rng.standard_normal((50, 256)).astype(np.float32)
+        M /= np.linalg.norm(M, axis=1, keepdims=True)
+        q = _unit_norm(rng.standard_normal(256).astype(np.float32))
+        fast = cosine_one_to_many_normalized(q, M)
+        ref = np.clip(M @ q, -1.0, 1.0)
+        assert np.allclose(fast, ref, atol=1e-5)
+
+    def test_dim_mismatch_raises(self) -> None:
+        M = np.zeros((3, 4), dtype=np.float32)
+        q = np.zeros(3, dtype=np.float32)
+        with pytest.raises(ValueError):
+            cosine_one_to_many_normalized(q, M)
+
+
+class TestCosineAdjacentNormalized:
+    def test_matches_generic_on_unit_norm_inputs(self) -> None:
+        rng = np.random.default_rng(0xDEAD)
+        M = rng.standard_normal((50, 256)).astype(np.float32)
+        M /= np.linalg.norm(M, axis=1, keepdims=True)
+        fast = cosine_adjacent_normalized(M)
+        generic = cosine_adjacent(M)
+        assert fast.shape == (49,)
+        assert np.allclose(fast, generic, atol=1e-5)
+
+    def test_single_row_returns_empty(self) -> None:
+        M = np.array([[1.0, 0.0, 0.0]], dtype=np.float32)
+        assert cosine_adjacent_normalized(M).shape == (0,)
+
+    def test_matches_einsum_reference(self) -> None:
+        rng = np.random.default_rng(0xACE)
+        M = rng.standard_normal((40, 768)).astype(np.float32)
+        M /= np.linalg.norm(M, axis=1, keepdims=True)
+        fast = cosine_adjacent_normalized(M)
+        ref = np.clip(np.einsum("ij,ij->i", M[:-1], M[1:]), -1.0, 1.0)
+        assert np.allclose(fast, ref, atol=1e-5)
 
 
 # ---------------------------------------------------------------------------

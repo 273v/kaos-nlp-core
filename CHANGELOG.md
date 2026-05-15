@@ -9,6 +9,86 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [0.1.0a6] - 2026-05-15
+
+### Added
+
+- **Pre-normalised cosine fast paths** in `kaos_nlp_core.similarity`:
+  `cosine_normalized`, `cosine_one_to_many_normalized`, and
+  `cosine_adjacent_normalized`. Skip the per-vector `‖a‖²` / `‖b‖²`
+  work and the rsqrt finalisation; pure dot + clamp. Callers that
+  feed unit-norm embeddings (kaos-nlp-transformers' SemanticChunker
+  + ExtractiveRanker) should use these for the production hot path.
+- New kernel-layer entry points exposed for downstream Rust
+  consumers: `cosine_components_f32`, `dot_f32`, `norm_sq_f32`,
+  `cosine_f32_normalized`, `finalize_cosine_f32`, and the
+  `cosine_{one_to_many,adjacent}_{,normalized}_into` write-into-
+  slice variants. See `docs/design-similarity-simd.md`.
+
+### Changed
+
+- **Hand-rolled f32 SIMD kernels with runtime ISA dispatch** replace
+  the previous auto-vectorised `f64`-accumulator design. New layout
+  at `rust/core/similarity/kernels.rs`:
+  - **AVX-512F + FMA** path (16-wide `f32`) — Intel Skylake-X /
+    Sapphire Rapids, AMD Genoa.
+  - **AVX2 + FMA** path (8-wide `f32`) — Intel Haswell+, AMD Zen+,
+    the modal consumer + cloud x86 hardware.
+  - **NEON** path (4-wide `f32`) — Apple Silicon, ARM Linux,
+    Windows ARM64.
+  - **Scalar** fallback for every other target.
+  Dispatch is feature-detected at first call and cached in a
+  `OnceLock<u8>`; per-call cost is a `Relaxed` atomic load.
+- **Fused single-pass cosine kernel** — every public cosine entry
+  point now computes `(dot, ‖a‖², ‖b‖²)` in one SIMD loop over the
+  data (was three separate passes). Finalisation uses an `rsqrt`
+  estimate with one Newton-Raphson refinement (AVX2/AVX-512) or two
+  (NEON), borrowed from NumKong's `nk_angular_normalize_*` design.
+- **`cosine_one_to_many` runs the full row loop inside the ISA
+  kernel** — one dispatch decision per call, one query-norm
+  computation per call, two FMAs per element per row. Previously
+  it dispatched per row and recomputed the query norm each iteration.
+- **MSRV bumped to 1.89** to enable stable AVX-512 intrinsics on
+  x86_64. All shipping wheels build with Rust ≥ 1.93 on current CI
+  toolchains; the bump only affects callers who consume the source
+  crate directly with an older toolchain.
+
+### Perf envelope (Intel i7-12700K, AVX2+FMA, no AVX-512)
+
+Measured vs `numpy.dot` (BLAS sgemv) at the production callsites
+(SemanticChunker + ExtractiveRanker, unit-norm rows):
+
+| Shape                        | Generic path | Pre-normalised |
+|------------------------------|-------------:|---------------:|
+| `n=50,   dim=384`            |          n/a |   **4.0× win** |
+| `n=200,  dim=384`            |          n/a |   **2.5× win** |
+| `n=1000, dim=384`            |        0.54× |        1.04×   |
+| `n=1000, dim=768`            |  **48× win** | **242× win**¹  |
+| `n=10000, dim=384`           |   **15× win**|   **6.8× win** |
+
+¹ `n=1000 d=768` cell has high variance — numpy's BLAS shape
+heuristic occasionally falls back to the un-tiled `sgemv` here.
+Median over 30 trials.
+
+The `cosine_adjacent_normalized` path used by SemanticChunker is
+**1.5–7.4× faster than numpy at every tested shape** (`n ∈ [10, 1000]`,
+`dim ∈ {256, 384, 768}`), no losses. See
+`docs/benchmarks/similarity-cosine-adjacent-normalized.json` and the
+companion `*-one-to-many-normalized.json` for the full grid; raw
+numbers are committed alongside the source so release-over-release
+drift is visible.
+
+### Documentation
+
+- `docs/design-similarity-simd.md` documents the kernel layout,
+  the per-function NumKong inspirations (file + symbol map), the
+  dispatch flag, the numerical-stability rationale, and what we
+  intentionally did **not** port.
+- `NOTICE` updated with NumKong attribution
+  (https://github.com/ashvardanian/NumKong; Apache-2.0). The Rust
+  port is clean-room; no NumKong source is bundled or linked.
+
+
 ## [0.1.0a5] - 2026-05-15
 
 ### Changed

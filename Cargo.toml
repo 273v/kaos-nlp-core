@@ -1,11 +1,11 @@
 [package]
 name = "kaos-nlp-core"
-version = "0.1.0-alpha.5"
+version = "0.1.0-alpha.6"
 edition = "2021"
 license = "Apache-2.0"
 authors = ["273 Ventures LLC <it@273ventures.com>"]
 description = "High-performance NLP primitives for the Kelvin Agentic OS — SIMD string ops, multi-pattern matching, FST dictionaries, sentence segmentation, BM25 retrieval, fuzzy hashing"
-rust-version = "1.83"
+rust-version = "1.89"
 repository = "https://github.com/273v/kaos-nlp-core"
 homepage = "https://kelvin.legal"
 documentation = "https://docs.kelvin.legal"
