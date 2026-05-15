@@ -46,24 +46,38 @@
 //! Backend
 //! -------
 //!
-//! All compute paths route through the `numkong` Apache-2.0 crate
-//! (vendored C kernels behind a Rust facade — successor to SimSIMD).
-//! NumKong selects the highest-supported SIMD ISA at runtime via the
-//! cached `nk_capabilities()` bitmask: AVX-512 (Sapphire/Genoa),
-//! AVX2 (Haswell/Skylake), AVX-512FP16, BF16, NEON, SVE, SVE2, SME,
-//! AMX, and a scalar fallback. We never bypass this — the Rust source
-//! does not include hand-rolled `std::arch` intrinsics. Updating the
-//! `numkong` dependency lifts every CPU feature we'd otherwise have
-//! to hand-write.
+//! All compute paths route through the portable f32-with-f64-accumulator
+//! kernels in [`crate::core::similarity::kernels`]. The kernels use 8
+//! parallel `f64` accumulators per loop chunk so LLVM
+//! auto-vectorises them to AVX2 (Haswell/Skylake), NEON (aarch64),
+//! and the scalar fallback on the rest -- no external SIMD crate is
+//! pulled in, and Windows wheels (both `x86_64-pc-windows-msvc` and
+//! `aarch64-pc-windows-msvc`) build cleanly. The 8-lane reduction
+//! also gives a pairwise-style `O(log N)` error bound on the
+//! accumulator, which keeps cosine within machine f32 epsilon for
+//! the dimensionalities we serve in production (256-1536).
+//!
+//! Earlier alpha drafts used the `numkong` Apache-2.0 crate (vendored
+//! C kernels with runtime AVX-512 / SVE dispatch). That dependency
+//! was dropped at v0.1.0a5 because the vendored C
+//! (1) `#include`s `immintrin.h` unconditionally, which MSVC rejects
+//! on `aarch64-pc-windows-msvc`, and
+//! (2) ships a `DllMain` symbol that collides with `stringzilla`
+//! (which we already link for SIMD substring matching).
+//! Both break the Windows wheel matrix. The portable-SIMD path here
+//! follows the *design* of NumKong's compensated kernel without
+//! taking the vendored-C dependency.
 //!
 //! Numerical guarantees
 //! --------------------
 //!
-//! * **f32 cosine accumulates in f64** with Neumaier-Kahan-Babuška
-//!   compensation on the dot product **and** on both `||a||²` and
-//!   `||b||²` (NumKong `spatial/serial.h:74`). The end-to-end relative
-//!   error on long vectors is ~`1e-7` (machine f32 epsilon),
-//!   never the `O(sqrt(n) * eps)` of a naive scalar accumulator.
+//! * **f32 cosine accumulates in f64** via 8 parallel accumulators
+//!   that LLVM auto-vectorises (see [`crate::core::similarity::kernels`]).
+//!   The 8-lane reduction gives a pairwise-style `O(log N)` error
+//!   bound -- comparable to Neumaier compensation for the
+//!   dimensionalities we serve, without the branch that compensated
+//!   accumulators introduce inside the hot loop. End-to-end relative
+//!   error stays inside machine f32 epsilon (~`1e-7`).
 //! * **NaN inputs** are not silently propagated — every function
 //!   returns `Err` (or skips, for batch) so callers can decide policy.
 //! * **Determinism** — same inputs, same SIMD lane width → same bits.
@@ -79,6 +93,7 @@
 #![allow(missing_docs)]
 
 pub mod dense;
+pub mod kernels;
 pub mod mmr;
 pub mod topk;
 
