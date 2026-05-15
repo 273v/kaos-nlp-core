@@ -1,0 +1,29 @@
+{
+  "label": "Sentence@USC",
+  "documents": 1000,
+  "chunks": 3891,
+  "empty_documents": 0,
+  "exceptions": [],
+  "bad_offset_examples": [],
+  "elapsed_seconds": 0.722,
+  "rss_before_mb": 1681.7,
+  "rss_after_mb": 1733.4,
+  "rss_delta_mb": 51.6,
+  "chunks_per_sec": 5388.6,
+  "docs_per_sec": 1384.9,
+  "chunk_token_count": {
+    "min": 3,
+    "p50": 454,
+    "p95": 509.0,
+    "p99": 514.08,
+    "max": 6119,
+    "mean": 403.8
+  },
+  "chunks_per_doc": {
+    "min": 1,
+    "p50": 1.0,
+    "p95": 13.0,
+    "max": 238,
+    "mean": 3.9
+  }
+}

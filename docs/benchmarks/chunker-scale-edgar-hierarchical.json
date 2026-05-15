@@ -1,0 +1,29 @@
+{
+  "label": "Hierarchical@EDGAR",
+  "documents": 200,
+  "chunks": 39353,
+  "empty_documents": 0,
+  "exceptions": [],
+  "bad_offset_examples": [],
+  "elapsed_seconds": 1.416,
+  "rss_before_mb": 1800.4,
+  "rss_after_mb": 1800.6,
+  "rss_delta_mb": 0.2,
+  "chunks_per_sec": 27792.0,
+  "docs_per_sec": 141.2,
+  "chunk_token_count": {
+    "min": 1,
+    "p50": 113,
+    "p95": 921.0,
+    "p99": 1621.0,
+    "max": 91504,
+    "mean": 244.2
+  },
+  "chunks_per_doc": {
+    "min": 2,
+    "p50": 80.0,
+    "p95": 915.85,
+    "max": 2147,
+    "mean": 196.8
+  }
+}

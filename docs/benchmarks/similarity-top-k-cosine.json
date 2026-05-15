@@ -1,0 +1,95 @@
+{
+  "grid": [
+    {
+      "n_rows": 100,
+      "dim": 256,
+      "k": 10,
+      "rust_median_ns": 5799,
+      "numpy_median_ns": 15826,
+      "speedup_x": 2.729,
+      "rust_ms_per_call": 0.0058,
+      "numpy_ms_per_call": 0.0158
+    },
+    {
+      "n_rows": 100,
+      "dim": 384,
+      "k": 10,
+      "rust_median_ns": 7533,
+      "numpy_median_ns": 17001,
+      "speedup_x": 2.257,
+      "rust_ms_per_call": 0.0075,
+      "numpy_ms_per_call": 0.017
+    },
+    {
+      "n_rows": 100,
+      "dim": 768,
+      "k": 10,
+      "rust_median_ns": 11299,
+      "numpy_median_ns": 19080,
+      "speedup_x": 1.689,
+      "rust_ms_per_call": 0.0113,
+      "numpy_ms_per_call": 0.0191
+    },
+    {
+      "n_rows": 1000,
+      "dim": 256,
+      "k": 10,
+      "rust_median_ns": 39686,
+      "numpy_median_ns": 52954,
+      "speedup_x": 1.334,
+      "rust_ms_per_call": 0.0397,
+      "numpy_ms_per_call": 0.053
+    },
+    {
+      "n_rows": 1000,
+      "dim": 384,
+      "k": 10,
+      "rust_median_ns": 55765,
+      "numpy_median_ns": 58248,
+      "speedup_x": 1.045,
+      "rust_ms_per_call": 0.0558,
+      "numpy_ms_per_call": 0.0582
+    },
+    {
+      "n_rows": 1000,
+      "dim": 768,
+      "k": 10,
+      "rust_median_ns": 58667,
+      "numpy_median_ns": 7169280,
+      "speedup_x": 122.203,
+      "rust_ms_per_call": 0.0587,
+      "numpy_ms_per_call": 7.1693
+    },
+    {
+      "n_rows": 10000,
+      "dim": 256,
+      "k": 10,
+      "rust_median_ns": 259092,
+      "numpy_median_ns": 2995583,
+      "speedup_x": 11.562,
+      "rust_ms_per_call": 0.2591,
+      "numpy_ms_per_call": 2.9956
+    },
+    {
+      "n_rows": 10000,
+      "dim": 384,
+      "k": 10,
+      "rust_median_ns": 461346,
+      "numpy_median_ns": 3004260,
+      "speedup_x": 6.512,
+      "rust_ms_per_call": 0.4613,
+      "numpy_ms_per_call": 3.0043
+    },
+    {
+      "n_rows": 10000,
+      "dim": 768,
+      "k": 10,
+      "rust_median_ns": 1355187,
+      "numpy_median_ns": 3247203,
+      "speedup_x": 2.396,
+      "rust_ms_per_call": 1.3552,
+      "numpy_ms_per_call": 3.2472
+    }
+  ],
+  "k": 10
+}

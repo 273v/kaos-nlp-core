@@ -1,0 +1,29 @@
+{
+  "label": "FixedToken@EDGAR",
+  "documents": 200,
+  "chunks": 10651,
+  "empty_documents": 0,
+  "exceptions": [],
+  "bad_offset_examples": [],
+  "elapsed_seconds": 0.04,
+  "rss_before_mb": 1739.0,
+  "rss_after_mb": 1739.0,
+  "rss_delta_mb": 0.0,
+  "chunks_per_sec": 266533.5,
+  "docs_per_sec": 5004.9,
+  "chunk_token_count": {
+    "min": 40,
+    "p50": 512,
+    "p95": 512.0,
+    "p99": 512.0,
+    "max": 512,
+    "mean": 507.8
+  },
+  "chunks_per_doc": {
+    "min": 1,
+    "p50": 21.0,
+    "p95": 243.95,
+    "max": 1449,
+    "mean": 53.3
+  }
+}

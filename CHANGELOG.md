@@ -8,6 +8,326 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+## [0.1.0a7] - 2026-05-15
+
+### Added — `kaos_nlp_core.content_type` (PRD PR 4)
+
+- **`kaos_nlp_core.content_type.detect(bytes) -> ContentTypeResult`** —
+  magic-byte content classifier feeding the kaos-agents per-turn
+  planner's `corpus_kinds` Signature input. Returns a frozen
+  `ContentTypeResult(mime_type, extension, group)` where `group` is
+  one of a fixed enumeration the planner's few-shot examples are
+  written against: `pdf`, `office-docx`, `office-xlsx`,
+  `office-pptx`, `office-doc`, `office-xls`, `office-ppt`, `image`,
+  `audio`, `video`, `archive`, `email`, `html`, `text`, `font`,
+  `binary`, `unknown`.
+- Backed by the `infer` Rust crate (MIT, ~80KB, zero runtime deps,
+  350+ file types). Pure magic-byte sniffing — no ML model, no
+  ONNX runtime, no impact on wheel size or CI build times. Covers
+  the kelvin-legal upload set (PDF / DOCX / XLSX / PPTX / JPEG /
+  PNG / ZIP / EML / ...) at effectively 100% accuracy on samples
+  ≥256 bytes. Google Magika 1.0 (ML, ONNX) was considered but
+  deferred — see PRD PR 4 §7 ("References") for the comparison.
+- Rust core: `rust/core/content_type/mod.rs` (5 unit tests).
+  PyO3 binding: `rust/bindings/content_type.rs`. Python facade:
+  `python/kaos_nlp_core/content_type/__init__.py` (typed frozen
+  dataclass + `is_known` property). Type stubs:
+  `python/kaos_nlp_core/_rust/content_type.pyi`. Cross-boundary
+  tests: `tests/test_content_type.py` (14 tests).
+
+Motivated by `kaos-modules/docs/internal/dynamic-tool-planning-prd.md`
+§4 (round-2 decision #7) — a session that uploads "10MB PDF + a CSV
++ an HTML snapshot" should surface `corpus_kinds = ["pdf",
+"spreadsheet", "html"]` to the planner so it can rationalize its
+ceiling around the actual document mix.
+
+The classifier is purely additive: no existing public surface
+changes. kaos-content uploaders + the single-user-chat backend
+opt in when they want corpus tagging.
+
+
+## [0.1.0a6] - 2026-05-15
+
+### Added
+
+- **Pre-normalised cosine fast paths** in `kaos_nlp_core.similarity`:
+  `cosine_normalized`, `cosine_one_to_many_normalized`, and
+  `cosine_adjacent_normalized`. Skip the per-vector `‖a‖²` / `‖b‖²`
+  work and the rsqrt finalisation; pure dot + clamp. Callers that
+  feed unit-norm embeddings (kaos-nlp-transformers' SemanticChunker
+  + ExtractiveRanker) should use these for the production hot path.
+- New kernel-layer entry points exposed for downstream Rust
+  consumers: `cosine_components_f32`, `dot_f32`, `norm_sq_f32`,
+  `cosine_f32_normalized`, `finalize_cosine_f32`, and the
+  `cosine_{one_to_many,adjacent}_{,normalized}_into` write-into-
+  slice variants. See `docs/design-similarity-simd.md`.
+
+### Changed
+
+- **Hand-rolled f32 SIMD kernels with runtime ISA dispatch** replace
+  the previous auto-vectorised `f64`-accumulator design. New layout
+  at `rust/core/similarity/kernels.rs`:
+  - **AVX-512F + FMA** path (16-wide `f32`) — Intel Skylake-X /
+    Sapphire Rapids, AMD Genoa.
+  - **AVX2 + FMA** path (8-wide `f32`) — Intel Haswell+, AMD Zen+,
+    the modal consumer + cloud x86 hardware.
+  - **NEON** path (4-wide `f32`) — Apple Silicon, ARM Linux,
+    Windows ARM64.
+  - **Scalar** fallback for every other target.
+  Dispatch is feature-detected at first call and cached in a
+  `OnceLock<u8>`; per-call cost is a `Relaxed` atomic load.
+- **Fused single-pass cosine kernel** — every public cosine entry
+  point now computes `(dot, ‖a‖², ‖b‖²)` in one SIMD loop over the
+  data (was three separate passes). Finalisation uses an `rsqrt`
+  estimate with one Newton-Raphson refinement (AVX2/AVX-512) or two
+  (NEON), borrowed from NumKong's `nk_angular_normalize_*` design.
+- **`cosine_one_to_many` runs the full row loop inside the ISA
+  kernel** — one dispatch decision per call, one query-norm
+  computation per call, two FMAs per element per row. Previously
+  it dispatched per row and recomputed the query norm each iteration.
+- **MSRV bumped to 1.89** to enable stable AVX-512 intrinsics on
+  x86_64. All shipping wheels build with Rust ≥ 1.93 on current CI
+  toolchains; the bump only affects callers who consume the source
+  crate directly with an older toolchain.
+
+### Perf envelope (Intel i7-12700K, AVX2+FMA, no AVX-512)
+
+Measured vs `numpy.dot` (BLAS sgemv) at the production callsites
+(SemanticChunker + ExtractiveRanker, unit-norm rows):
+
+| Shape                        | Generic path | Pre-normalised |
+|------------------------------|-------------:|---------------:|
+| `n=50,   dim=384`            |          n/a |   **4.0× win** |
+| `n=200,  dim=384`            |          n/a |   **2.5× win** |
+| `n=1000, dim=384`            |        0.54× |        1.04×   |
+| `n=1000, dim=768`            |  **48× win** | **242× win**¹  |
+| `n=10000, dim=384`           |   **15× win**|   **6.8× win** |
+
+¹ `n=1000 d=768` cell has high variance — numpy's BLAS shape
+heuristic occasionally falls back to the un-tiled `sgemv` here.
+Median over 30 trials.
+
+The `cosine_adjacent_normalized` path used by SemanticChunker is
+**1.5–7.4× faster than numpy at every tested shape** (`n ∈ [10, 1000]`,
+`dim ∈ {256, 384, 768}`), no losses. See
+`docs/benchmarks/similarity-cosine-adjacent-normalized.json` and the
+companion `*-one-to-many-normalized.json` for the full grid; raw
+numbers are committed alongside the source so release-over-release
+drift is visible.
+
+### Documentation
+
+- `docs/design-similarity-simd.md` documents the kernel layout,
+  the per-function NumKong inspirations (file + symbol map), the
+  dispatch flag, the numerical-stability rationale, and what we
+  intentionally did **not** port.
+- `NOTICE` updated with NumKong attribution
+  (https://github.com/ashvardanian/NumKong; Apache-2.0). The Rust
+  port is clean-room; no NumKong source is bundled or linked.
+
+
+## [0.1.0a5] - 2026-05-15
+
+### Changed
+
+- **Dropped the `numkong = "7.6"` Cargo dependency** and ported its
+  *design* (f32 inputs, f64 accumulators, pairwise-style reduction
+  via 8 parallel lanes) into a portable in-house kernel at
+  `rust/core/similarity/kernels.rs`. The new kernel auto-vectorises
+  to AVX2 (x86_64) and NEON (aarch64) at `-C opt-level=3` and runs
+  on every platform we ship a wheel for, including
+  `aarch64-pc-windows-msvc` and `x86_64-pc-windows-msvc` where
+  numkong's vendored C broke (`immintrin.h` rejected on MSVC ARM64
+  and a `DllMain` symbol that collided with `stringzilla`'s).
+- Numerical contract unchanged: cosine clipped to `[-1, 1]`, zero-
+  norm vectors yield 0.0, f32 inputs accumulated in f64. The 8-lane
+  reduction gives an `O(log N)` error bound comparable to Neumaier
+  compensation for the dimensionalities we serve (256-1536).
+- `cosine_one_to_many` now precomputes the query norm once per call,
+  saving the per-row redundant norm computation that numkong's
+  serial path was doing internally. Modest perf win on long batches.
+
+### Removed
+
+- `numkong` Cargo dep + the doc-comment claims about NumKong's
+  AVX-512 / SVE / SME runtime dispatch. The replacement covers AVX2
+  + NEON via auto-vec, which is the highest-supported ISA on
+  every wheel target except niche AVX-512 servers (where we recover
+  the throughput when LLVM ever auto-vec's 256-bit loops on those
+  cores; benchmarks remain in `docs/benchmarks/similarity-*.json`
+  for the new perf envelope).
+
+
+## [0.1.0a4] - 2026-05-15
+
+### Added
+
+- **Rust chunking kernels** (`rust/core/chunking/`) — the greedy
+  unit packer that drives every concrete chunker
+  (Fixed / Sentence / Paragraph / Section / Hierarchical) is now in
+  Rust as `pack_units(starts, ends, token_counts, max_tokens,
+  overlap_units)`, returning five parallel ``uint32`` arrays
+  describing the resulting groups. A second kernel
+  ``semantic_pack(..., adj_sim, drop_threshold)`` covers
+  ``kaos_nlp_transformers.SemanticChunker``'s budget+topic-shift
+  scan. Both run with the GIL released via ``py.detach``. The
+  Python wrappers in ``kaos_nlp_core.chunking._pack`` (and
+  ``SemanticChunker._pack``) marshal `_Unit` lists / numpy
+  embeddings into the CSR-style input format, then materialise
+  Chunks from the Rust groups. Behaviour is bit-identical to the
+  prior pure-Python loop (244 chunker tests + 26 SemanticChunker
+  tests + scale tests verify).
+- **Rust aggregation kernels** (`rust/core/aggregation/`) — all six
+  primitives (`vote`, `majority`, `union`, `intersection`,
+  `weighted_single` / `weighted_multi`, `max_score_single` /
+  `max_score_multi`) now run in Rust. The Python wrappers in
+  ``kaos_nlp_core.aggregation`` intern string label names to
+  ``u32`` ids preserving first-appearance order (so the
+  "lowest first_seen wins" tiebreak maps to "lowest id wins" in
+  Rust), then dispatch through a CSR-style ragged-array
+  representation. Kernels are pure functions of their inputs and
+  free of hash-randomization side-channels; the existing
+  determinism test suite (`test_aggregation_determinism.py`)
+  passes unchanged. Benchmark report at
+  ``docs/benchmarks/aggregation-rust-vs-python.json``.
+- **`numpy` declared as a runtime dependency** — the dense similarity,
+  chunker, and aggregation Rust bindings all marshal through
+  ``numpy.ndarray``; the top-level ``kaos_nlp_core`` package
+  unconditionally imports them. Declares ``numpy>=1.26`` in
+  ``[project.dependencies]`` to make the existing transitive
+  requirement explicit. Affects downstream wheels (kaos-llm-core,
+  kaos-nlp-transformers, etc.) that consume kaos-nlp-core's
+  public surface — numpy will be pulled in automatically.
+- **`kaos_nlp_core.similarity`** — new module exposing
+  hardware-accelerated dense-vector primitives. Backed by the
+  vendored NumKong C kernels (successor to SimSIMD; Apache-2.0)
+  routed through a thin Rust+PyO3 layer at
+  ``rust/core/similarity/`` and ``rust/bindings/similarity.rs``.
+  Public surface:
+  - ``cosine(a, b) -> float`` — single-pair cosine similarity.
+  - ``cosine_one_to_many(query, matrix) -> ndarray`` — one query vs
+    every row.
+  - ``cosine_adjacent(matrix) -> ndarray`` — cos of every adjacent
+    row pair (semantic chunker).
+  - ``top_k_cosine(query, matrix, k) -> TopKResult`` — heap-based
+    selection with ascending-index tiebreak.
+  - ``mmr_select(matrix, relevance, k, lambda_) -> MMRResult`` —
+    Maximal Marginal Relevance.
+  - ``l2_normalize_in_place(vector) -> bool`` — unit-norm in place.
+  - `TopKResult` and `MMRResult` typed `@dataclass(frozen=True,
+    slots=True)` result containers.
+  - Runtime dispatch (AVX-512 / AVX2 / NEON / SVE / scalar) chosen
+    by NumKong's CPU-feature probe. f32 accumulates in f64 with
+    Neumaier-Kahan-Babuška compensation; cosine results clipped to
+    ``[-1, 1]``; zero-norm vectors return ``0.0``; ties broken by
+    ascending row index.
+  - Benchmarks under ``docs/benchmarks/similarity-*.json`` track
+    Rust-vs-numpy across the dim x corpus-size grid. Real wins on
+    long workloads (17-67x on 1000-row x 768-d cosine + MMR); numpy
+    competitive or faster on small dim=256 / n=100 cases where PyO3
+    boundary overhead dominates.
+
+### Documentation
+
+- **Use + AI-authorship disclosure** added to the README. Notes
+  that `kaos-nlp-core` is fully deterministic and local (no LLM
+  calls, no network) but that downstream consumers may transmit
+  derived text to LLM providers. AI-assisted authorship disclosure
+  (Claude, Anthropic; human-reviewed) added.
+
+### Fixed
+
+- **`SentenceChunker` allocates less metadata per chunk.** Previously
+  each `_Unit` carried a per-sentence
+  `metadata={"sentence_confidence": ...}` dict, which the packer
+  then copied into a merged dict, which ``Chunk.__post_init__``
+  then re-wrapped in ``MappingProxyType(dict(...))`` — three
+  allocations per chunk. ``sentence_confidence`` is never consumed
+  downstream (verified by grep across all three repos), and the
+  underlying ``Segment.confidence`` value remains available on the
+  raw Punkt output. Now: the unit metadata is omitted (no
+  per-sentence dict), and the shared
+  ``_pack._EMPTY_METADATA_DICT`` sentinel replaces the
+  ``metadata or {}`` allocation when no metadata is supplied. Net:
+  measurably fewer dict allocations on the SentenceChunker hot
+  path; previously the 1000-USC-doc scale run reported a 253 MB
+  RSS delta.
+
+- **`vote`, `majority`, and `weighted` aggregation primitives are now
+  deterministic across processes.** Previously they iterated each
+  chunk's labels via ``for name in set(chunk_labels)``, which uses
+  Python's hash-randomized set iteration order — so the ``first_seen``
+  map (and therefore the documented "ties broken by order of first
+  appearance" tiebreak) silently depended on ``PYTHONHASHSEED`` and
+  could disagree across processes. Replaced ``set(chunk_labels)``
+  with ``dict.fromkeys(chunk_labels)`` in all three functions
+  (`/python/kaos_nlp_core/aggregation/__init__.py`); the dedup is
+  identical but insertion order is preserved. New regression test
+  suite in `tests/test_aggregation_determinism.py` runs each
+  function under six different ``PYTHONHASHSEED`` values in fresh
+  subprocesses and asserts identical winners.
+
+### Added
+
+- **`kaos_nlp_core.chunking`** — new module for document chunking
+  primitives. Phase 0 + Phase 1 of the summarization/classification
+  cross-module plan.
+  - **Foundation types** (Phase 0):
+    - `Chunk` — frozen, slotted dataclass holding ``text``, ``start``,
+      ``end``, ``parent_id``, deterministic ``chunk_id``, optional
+      ``token_count``/``depth``, and read-only ``metadata``.
+    - `Chunker` — runtime-checkable protocol for callables that split
+      a source string into ``list[Chunk]``.
+    - `compute_chunk_id` — deterministic SHA-256-based identifier
+      function (32-char hex digest of
+      ``parent_id|start|end|text``).
+    - `validate_chunk_offsets` — round-trip helper that asserts
+      ``source[chunk.start:chunk.end] == chunk.text``.
+  - **Concrete chunkers** (Phase 1):
+    - `FixedTokenChunker` — sliding character-window chunker sized
+      by an approximate token budget with optional overlap.
+    - `SentenceChunker` — Punkt-backed sentence packer that respects
+      sentence boundaries up to the token budget; oversize sentences
+      emit alone.
+    - `ParagraphChunker` — paragraph-aware packer that falls back to
+      :class:`SentenceChunker` for oversize paragraphs.
+    - `SectionChunker` — detects enumerator-bearing sections
+      (``1.``, ``§``, ``Article``, ``# Heading``, etc.) via
+      :func:`segment_lines` + :func:`parse_enumerator`, then chunks
+      within each section.
+    - `HierarchicalChunker` — multi-depth chunker emitting
+      section-level (``depth=0``), paragraph-level (``depth=1``),
+      and sentence-level (``depth=2``) chunks in a single flat
+      list, each tagged with its ``level`` and ``section_*``
+      metadata for tree reconstruction.
+    - `default_token_counter` — public ``ceil(chars / 4)``
+      approximation; pluggable per chunker via
+      ``token_counter=...``.
+  - `chunking` is re-exported from ``kaos_nlp_core`` and listed in
+    ``__all__``.
+  - Determinism, round-trip offsets (``source[c.start:c.end] ==
+    c.text``), Unicode/CJK/emoji round-trip, ``parent_id``
+    propagation, and ordering are property-checked across all
+    chunkers in ``tests/test_chunking_chunkers.py``.
+  - Benchmark harness in ``tests/bench_chunking.py``.
+
+- **`kaos_nlp_core.aggregation`** — new module of pure, deterministic
+  label-aggregation primitives consumed by the
+  :class:`~kaos_llm_core.composition.aggregate.Aggregator` strategy
+  classes in ``kaos-llm-core``. Phase 2 of the
+  summarization/classification cross-module plan.
+  - `vote(per_chunk)` — plurality, ties broken by first appearance.
+  - `majority(per_chunk, threshold=0.5)` — threshold-gated majority.
+  - `union(per_chunk)` — multi-label any-chunk union.
+  - `intersection(per_chunk)` — multi-label every-chunk intersection.
+  - `weighted(per_chunk, weights, threshold, multi)` — weighted
+    aggregation supporting both single-label and multi-label modes.
+  - `max_score(per_chunk_scores, multi, threshold)` — aggregate by
+    the highest single-chunk score per label.
+  - ``aggregation`` is re-exported from ``kaos_nlp_core`` and listed
+    in ``__all__``.
+
 ## [0.1.0a3] — 2026-05-11
 
 ### Changed

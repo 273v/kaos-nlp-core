@@ -1,0 +1,29 @@
+{
+  "label": "FixedToken@USC",
+  "documents": 1000,
+  "chunks": 3939,
+  "empty_documents": 0,
+  "exceptions": [],
+  "bad_offset_examples": [],
+  "elapsed_seconds": 0.016,
+  "rss_before_mb": 1681.7,
+  "rss_after_mb": 1681.7,
+  "rss_delta_mb": 0.0,
+  "chunks_per_sec": 248072.7,
+  "docs_per_sec": 62978.6,
+  "chunk_token_count": {
+    "min": 7,
+    "p50": 512,
+    "p95": 512.0,
+    "p99": 512.0,
+    "max": 512,
+    "mean": 446.7
+  },
+  "chunks_per_doc": {
+    "min": 1,
+    "p50": 1.0,
+    "p95": 14.0,
+    "max": 239,
+    "mean": 3.9
+  }
+}

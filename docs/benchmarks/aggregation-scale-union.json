@@ -1,0 +1,7 @@
+{
+  "fn": "union",
+  "input_chunks": 100000,
+  "elapsed_seconds": 0.031,
+  "throughput_chunks_per_sec": 3213645.8,
+  "result_size": 12
+}

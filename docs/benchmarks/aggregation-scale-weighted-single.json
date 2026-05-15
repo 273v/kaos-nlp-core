@@ -1,0 +1,8 @@
+{
+  "fn": "weighted",
+  "mode": "single",
+  "input_chunks": 100000,
+  "elapsed_seconds": 0.037,
+  "throughput_chunks_per_sec": 2736916.1,
+  "result": "indemnification"
+}

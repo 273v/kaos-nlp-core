@@ -1,0 +1,29 @@
+{
+  "label": "Paragraph@USC",
+  "documents": 1000,
+  "chunks": 2228,
+  "empty_documents": 0,
+  "exceptions": [],
+  "bad_offset_examples": [],
+  "elapsed_seconds": 0.334,
+  "rss_before_mb": 1733.4,
+  "rss_after_mb": 1733.4,
+  "rss_delta_mb": 0.0,
+  "chunks_per_sec": 6663.7,
+  "docs_per_sec": 2990.9,
+  "chunk_token_count": {
+    "min": 3,
+    "p50": 882.5,
+    "p95": 1020.0,
+    "p99": 1025.0,
+    "max": 6119,
+    "mean": 705.2
+  },
+  "chunks_per_doc": {
+    "min": 1,
+    "p50": 1.0,
+    "p95": 7.0,
+    "max": 113,
+    "mean": 2.2
+  }
+}

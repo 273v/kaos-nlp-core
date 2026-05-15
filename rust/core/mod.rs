@@ -6,8 +6,11 @@
 
 #![allow(missing_docs)]
 
+pub mod aggregation;
 pub mod algorithms;
 pub mod characters;
+pub mod chunking;
+pub mod content_type;
 pub mod ctph;
 pub mod diff;
 pub mod lexicon;
@@ -16,6 +19,7 @@ pub mod minhash;
 pub mod quality;
 pub mod searcher;
 pub mod segmentation;
+pub mod similarity;
 pub mod structure;
 pub mod structures;
 pub mod token_properties;

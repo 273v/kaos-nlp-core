@@ -1,0 +1,29 @@
+{
+  "label": "Sentence@Patents",
+  "documents": 200,
+  "chunks": 9212,
+  "empty_documents": 0,
+  "exceptions": [],
+  "bad_offset_examples": [],
+  "elapsed_seconds": 0.835,
+  "rss_before_mb": 1800.6,
+  "rss_after_mb": 1812.3,
+  "rss_delta_mb": 11.7,
+  "chunks_per_sec": 11035.7,
+  "docs_per_sec": 239.6,
+  "chunk_token_count": {
+    "min": 29,
+    "p50": 485.0,
+    "p95": 510.0,
+    "p99": 514.0,
+    "max": 2844,
+    "mean": 469.9
+  },
+  "chunks_per_doc": {
+    "min": 8,
+    "p50": 37.0,
+    "p95": 104.9,
+    "max": 267,
+    "mean": 46.1
+  }
+}

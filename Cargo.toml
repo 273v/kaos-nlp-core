@@ -1,11 +1,11 @@
 [package]
 name = "kaos-nlp-core"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.7"
 edition = "2021"
 license = "Apache-2.0"
 authors = ["273 Ventures LLC <it@273ventures.com>"]
 description = "High-performance NLP primitives for the Kelvin Agentic OS — SIMD string ops, multi-pattern matching, FST dictionaries, sentence segmentation, BM25 retrieval, fuzzy hashing"
-rust-version = "1.83"
+rust-version = "1.89"
 repository = "https://github.com/273v/kaos-nlp-core"
 homepage = "https://kelvin.legal"
 documentation = "https://docs.kelvin.legal"
@@ -24,7 +24,7 @@ crate-type = ["cdylib", "rlib"]
 
 [features]
 default = ["python"]
-python = ["pyo3"]
+python = ["pyo3", "numpy"]
 
 # --- Core dependencies ---
 [dependencies]
@@ -32,6 +32,18 @@ python = ["pyo3"]
 # minor (3.13, 3.14, 3.15, ...). Without this flag, every new Python minor
 # requires a re-release.
 pyo3 = { version = "0.28", features = ["extension-module", "abi3-py313"], optional = true }
+# NumPy interop — zero-copy reads of PyArray1<f32> / PyArray2<f32> +
+# owned-Vec<f32> → PyArray1<f32> output handoff for the
+# `core::similarity` module's PyO3 bindings. Pinned to the same minor
+# as `pyo3`; the `numpy` crate's PyO3 compat matrix requires matching
+# minors. Gated on the `python` feature (default-on) for the same
+# reason `pyo3` itself is gated — both are needed *only* at the
+# Python binding layer. Every published wheel ships both because
+# `default = ["python"]`. The gate exists so the pure-Rust test path
+# (`cargo test --no-default-features`) can exercise `rust/core/`
+# without dragging in PyO3 / numpy; it is not a user-facing on/off
+# knob.
+numpy = { version = "0.28", optional = true }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 # postcard: bincode (all versions) is unmaintained (RUSTSEC-2025-0141 — the
@@ -55,10 +67,38 @@ icu_properties = "2.2"
 # String algorithms
 strsim = "0.11"
 
+# Content-type sniffing by magic-bytes signature. Used by
+# `core::content_type` / `bindings::content_type` to feed the kaos-agents
+# per-turn planner's `corpus_kinds` Signature input (see
+# kaos-modules/docs/internal/dynamic-tool-planning-prd.md PR 4). Pure
+# Rust, zero runtime deps, MIT-licensed, 350+ file types. Chosen over
+# Google Magika 1.0 (which uses an ML model via the `ort` ONNX
+# Runtime crate) to keep the kaos-nlp-core wheel small and CI build
+# times bounded — `infer` covers the kelvin-legal upload set (PDF,
+# DOCX, XLSX, PPTX, JPEG, PNG, ZIP, EML, ...) by magic bytes, which
+# is sufficient for the coarse 10-bucket categorization the planner
+# needs. The Magika upgrade can land later if accuracy demands it.
+infer = { version = "0.19", default-features = false, features = ["std"] }
+
 # SIMD-accelerated string ops. 4.6.1 is a pure C-side patch over 4.6.0 that
 # fixes OOB reads in `sz_find_skylake` / `sz_rfind_skylake` for null-byte
 # needles and a signed-char bug in `sz_find_byte_serial`. No Rust API change.
 stringzilla = "4.6.1"
+
+# Dense-vector distance / similarity kernels live in our own Rust source
+# at `rust/core/similarity/kernels.rs`. The 0.1.0a4 line briefly pulled in
+# the `numkong` crate for SIMD acceleration; that dependency was dropped
+# at 0.1.0a5 because (1) numkong's vendored C `#include`s `immintrin.h`
+# unconditionally, which MSVC rejects on `aarch64-pc-windows-msvc`, and
+# (2) numkong ships a `DllMain` symbol that collides with `stringzilla`'s
+# `DllMain` on `x86_64-pc-windows-msvc`. Both broke the Windows wheel
+# matrix. The replacement kernels follow NumKong's *design* (f32 inputs,
+# f64 accumulators, pairwise-style reduction via 8 parallel lanes) without
+# the vendored-C dependency. LLVM auto-vectorises the 8-lane chunk loop
+# to AVX2 on x86_64 and NEON on aarch64; we never had to ship hand-rolled
+# `std::arch` intrinsics. See `docs/standards/rust-pyo3-design-and-architecture.md`
+# for the rationale and the perf envelope (90%+ of numkong's AVX2 throughput
+# on the dim/n_rows we serve, 100% portability across the wheel matrix).
 
 # Multi-pattern matching (Aho-Corasick)
 aho-corasick = "1.1"

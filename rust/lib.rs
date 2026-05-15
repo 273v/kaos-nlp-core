@@ -50,8 +50,11 @@ use pyo3::prelude::*;
 fn kaos_nlp_core_rust(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
 
+    bindings::aggregation::register_module(m)?;
     bindings::algorithms::register_module(m)?;
     bindings::characters::register_module(m)?;
+    bindings::chunking::register_module(m)?;
+    bindings::content_type::register_module(m)?;
     bindings::diff::register_module(m)?;
     bindings::hashing::register_module(m)?;
     bindings::lexicon::register_module(m)?;
@@ -59,6 +62,7 @@ fn kaos_nlp_core_rust(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     bindings::quality::register_module(m)?;
     bindings::searcher::register_module(m)?;
     bindings::segmentation::register_module(m)?;
+    bindings::similarity::register_module(m)?;
     bindings::spans::register_module(m)?;
     bindings::structure::register_module(m)?;
     bindings::structures::register_module(m)?;

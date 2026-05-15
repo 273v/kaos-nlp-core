@@ -1,0 +1,29 @@
+{
+  "label": "Section@EDGAR",
+  "documents": 200,
+  "chunks": 20453,
+  "empty_documents": 0,
+  "exceptions": [],
+  "bad_offset_examples": [],
+  "elapsed_seconds": 1.356,
+  "rss_before_mb": 1780.4,
+  "rss_after_mb": 1800.4,
+  "rss_delta_mb": 20.0,
+  "chunks_per_sec": 15088.7,
+  "docs_per_sec": 147.5,
+  "chunk_token_count": {
+    "min": 1,
+    "p50": 119,
+    "p95": 921.0,
+    "p99": 1017.0,
+    "max": 4607,
+    "mean": 231.4
+  },
+  "chunks_per_doc": {
+    "min": 1,
+    "p50": 41.0,
+    "p95": 468.85,
+    "max": 1102,
+    "mean": 102.3
+  }
+}
