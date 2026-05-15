@@ -1,0 +1,29 @@
+{
+  "label": "Hierarchical@Patents",
+  "documents": 200,
+  "chunks": 14238,
+  "empty_documents": 0,
+  "exceptions": [],
+  "bad_offset_examples": [],
+  "elapsed_seconds": 1.144,
+  "rss_before_mb": 1823.5,
+  "rss_after_mb": 1823.7,
+  "rss_delta_mb": 0.2,
+  "chunks_per_sec": 12451.1,
+  "docs_per_sec": 174.9,
+  "chunk_token_count": {
+    "min": 1,
+    "p50": 144.0,
+    "p95": 1022.0,
+    "p99": 8492.81,
+    "max": 68441,
+    "mean": 611.6
+  },
+  "chunks_per_doc": {
+    "min": 16,
+    "p50": 60.0,
+    "p95": 162.8,
+    "max": 334,
+    "mean": 71.2
+  }
+}

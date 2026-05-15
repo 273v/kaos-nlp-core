@@ -1,0 +1,29 @@
+{
+  "label": "Sentence@EDGAR",
+  "documents": 200,
+  "chunks": 10783,
+  "empty_documents": 0,
+  "exceptions": [],
+  "bad_offset_examples": [],
+  "elapsed_seconds": 0.756,
+  "rss_before_mb": 1739.0,
+  "rss_after_mb": 1780.4,
+  "rss_delta_mb": 41.4,
+  "chunks_per_sec": 14261.8,
+  "docs_per_sec": 264.5,
+  "chunk_token_count": {
+    "min": 3,
+    "p50": 459,
+    "p95": 522.0,
+    "p99": 833.32,
+    "max": 5794,
+    "mean": 439.2
+  },
+  "chunks_per_doc": {
+    "min": 1,
+    "p50": 21.5,
+    "p95": 239.15,
+    "max": 1544,
+    "mean": 53.9
+  }
+}

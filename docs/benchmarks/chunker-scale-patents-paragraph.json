@@ -1,0 +1,29 @@
+{
+  "label": "Paragraph@Patents",
+  "documents": 200,
+  "chunks": 4874,
+  "empty_documents": 0,
+  "exceptions": [],
+  "bad_offset_examples": [],
+  "elapsed_seconds": 0.763,
+  "rss_before_mb": 1812.3,
+  "rss_after_mb": 1822.6,
+  "rss_delta_mb": 10.3,
+  "chunks_per_sec": 6384.1,
+  "docs_per_sec": 262.0,
+  "chunk_token_count": {
+    "min": 9,
+    "p50": 937.0,
+    "p95": 1019.0,
+    "p99": 1025.0,
+    "max": 2844,
+    "mean": 888.0
+  },
+  "chunks_per_doc": {
+    "min": 4,
+    "p50": 19.5,
+    "p95": 55.0,
+    "max": 150,
+    "mean": 24.4
+  }
+}

@@ -1,7 +1,9 @@
 """kaos-nlp-core: High-performance NLP primitives for the Kelvin Agentic OS."""
 
 from kaos_nlp_core import (
+    aggregation,
     algorithms,
+    chunking,
     documents,
     hashing,
     lexicon,
@@ -11,6 +13,7 @@ from kaos_nlp_core import (
     retrieval,
     search,
     segmentation,
+    similarity,
     structures,
     token_properties,
     tokenizer,
@@ -38,7 +41,9 @@ except Exception:  # pragma: no cover - defensive: importlib.metadata always pre
 
 __all__ = [
     "__version__",
+    "aggregation",
     "algorithms",
+    "chunking",
     "documents",
     "hashing",
     "lexicon",
@@ -49,6 +54,7 @@ __all__ = [
     "retrieval",
     "search",
     "segmentation",
+    "similarity",
     "structures",
     "token_properties",
     "tokenizer",
