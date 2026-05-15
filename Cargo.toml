@@ -1,6 +1,6 @@
 [package]
 name = "kaos-nlp-core"
-version = "0.1.0-alpha.6"
+version = "0.1.0-alpha.7"
 edition = "2021"
 license = "Apache-2.0"
 authors = ["273 Ventures LLC <it@273ventures.com>"]
@@ -66,6 +66,19 @@ icu_properties = "2.2"
 
 # String algorithms
 strsim = "0.11"
+
+# Content-type sniffing by magic-bytes signature. Used by
+# `core::content_type` / `bindings::content_type` to feed the kaos-agents
+# per-turn planner's `corpus_kinds` Signature input (see
+# kaos-modules/docs/internal/dynamic-tool-planning-prd.md PR 4). Pure
+# Rust, zero runtime deps, MIT-licensed, 350+ file types. Chosen over
+# Google Magika 1.0 (which uses an ML model via the `ort` ONNX
+# Runtime crate) to keep the kaos-nlp-core wheel small and CI build
+# times bounded — `infer` covers the kelvin-legal upload set (PDF,
+# DOCX, XLSX, PPTX, JPEG, PNG, ZIP, EML, ...) by magic bytes, which
+# is sufficient for the coarse 10-bucket categorization the planner
+# needs. The Magika upgrade can land later if accuracy demands it.
+infer = { version = "0.19", default-features = false, features = ["std"] }
 
 # SIMD-accelerated string ops. 4.6.1 is a pure C-side patch over 4.6.0 that
 # fixes OOB reads in `sz_find_skylake` / `sz_rfind_skylake` for null-byte

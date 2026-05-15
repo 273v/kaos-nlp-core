@@ -9,6 +9,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [0.1.0a7] - 2026-05-15
+
+### Added — `kaos_nlp_core.content_type` (PRD PR 4)
+
+- **`kaos_nlp_core.content_type.detect(bytes) -> ContentTypeResult`** —
+  magic-byte content classifier feeding the kaos-agents per-turn
+  planner's `corpus_kinds` Signature input. Returns a frozen
+  `ContentTypeResult(mime_type, extension, group)` where `group` is
+  one of a fixed enumeration the planner's few-shot examples are
+  written against: `pdf`, `office-docx`, `office-xlsx`,
+  `office-pptx`, `office-doc`, `office-xls`, `office-ppt`, `image`,
+  `audio`, `video`, `archive`, `email`, `html`, `text`, `font`,
+  `binary`, `unknown`.
+- Backed by the `infer` Rust crate (MIT, ~80KB, zero runtime deps,
+  350+ file types). Pure magic-byte sniffing — no ML model, no
+  ONNX runtime, no impact on wheel size or CI build times. Covers
+  the kelvin-legal upload set (PDF / DOCX / XLSX / PPTX / JPEG /
+  PNG / ZIP / EML / ...) at effectively 100% accuracy on samples
+  ≥256 bytes. Google Magika 1.0 (ML, ONNX) was considered but
+  deferred — see PRD PR 4 §7 ("References") for the comparison.
+- Rust core: `rust/core/content_type/mod.rs` (5 unit tests).
+  PyO3 binding: `rust/bindings/content_type.rs`. Python facade:
+  `python/kaos_nlp_core/content_type/__init__.py` (typed frozen
+  dataclass + `is_known` property). Type stubs:
+  `python/kaos_nlp_core/_rust/content_type.pyi`. Cross-boundary
+  tests: `tests/test_content_type.py` (14 tests).
+
+Motivated by `kaos-modules/docs/internal/dynamic-tool-planning-prd.md`
+§4 (round-2 decision #7) — a session that uploads "10MB PDF + a CSV
++ an HTML snapshot" should surface `corpus_kinds = ["pdf",
+"spreadsheet", "html"]` to the planner so it can rationalize its
+ceiling around the actual document mix.
+
+The classifier is purely additive: no existing public surface
+changes. kaos-content uploaders + the single-user-chat backend
+opt in when they want corpus tagging.
+
+
 ## [0.1.0a6] - 2026-05-15
 
 ### Added
