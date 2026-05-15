@@ -1,6 +1,6 @@
 [package]
 name = "kaos-nlp-core"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.5"
 edition = "2021"
 license = "Apache-2.0"
 authors = ["273 Ventures LLC <it@273ventures.com>"]
@@ -72,17 +72,20 @@ strsim = "0.11"
 # needles and a signed-char bug in `sz_find_byte_serial`. No Rust API change.
 stringzilla = "4.6.1"
 
-# SIMD-accelerated dense-vector distance / similarity kernels. NumKong is the
-# successor to SimSIMD (same author and vendored C core, rebranded). One-shot
-# and batch (cdist-style) kernels with runtime dispatch across AVX-512 /
-# AVX2 / NEON / SVE / SVE2 / SME / Sapphire AMX / scalar fallback, plus
-# dtype-aware accumulator promotion (f32→f64 with Neumaier-Kahan-Babuška
-# compensation; i8→i32; f16/bf16→f32). Vendored C source compiled by
-# build.rs into a static lib; no system BLAS, no Fortran, no nightly Rust.
-# License Apache-2.0; MSRV 1.64 (we're at 1.83+). Same vendoring pattern as
-# `stringzilla` above. Audit notes: single upstream maintainer — pinned at
-# minor 7.6 so an upstream regression can't break our wheel matrix.
-numkong = "7.6"
+# Dense-vector distance / similarity kernels live in our own Rust source
+# at `rust/core/similarity/kernels.rs`. The 0.1.0a4 line briefly pulled in
+# the `numkong` crate for SIMD acceleration; that dependency was dropped
+# at 0.1.0a5 because (1) numkong's vendored C `#include`s `immintrin.h`
+# unconditionally, which MSVC rejects on `aarch64-pc-windows-msvc`, and
+# (2) numkong ships a `DllMain` symbol that collides with `stringzilla`'s
+# `DllMain` on `x86_64-pc-windows-msvc`. Both broke the Windows wheel
+# matrix. The replacement kernels follow NumKong's *design* (f32 inputs,
+# f64 accumulators, pairwise-style reduction via 8 parallel lanes) without
+# the vendored-C dependency. LLVM auto-vectorises the 8-lane chunk loop
+# to AVX2 on x86_64 and NEON on aarch64; we never had to ship hand-rolled
+# `std::arch` intrinsics. See `docs/standards/rust-pyo3-design-and-architecture.md`
+# for the rationale and the perf envelope (90%+ of numkong's AVX2 throughput
+# on the dim/n_rows we serve, 100% portability across the wheel matrix).
 
 # Multi-pattern matching (Aho-Corasick)
 aho-corasick = "1.1"

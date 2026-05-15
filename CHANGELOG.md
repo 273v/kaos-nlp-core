@@ -9,6 +9,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [0.1.0a5] - 2026-05-15
+
+### Changed
+
+- **Dropped the `numkong = "7.6"` Cargo dependency** and ported its
+  *design* (f32 inputs, f64 accumulators, pairwise-style reduction
+  via 8 parallel lanes) into a portable in-house kernel at
+  `rust/core/similarity/kernels.rs`. The new kernel auto-vectorises
+  to AVX2 (x86_64) and NEON (aarch64) at `-C opt-level=3` and runs
+  on every platform we ship a wheel for, including
+  `aarch64-pc-windows-msvc` and `x86_64-pc-windows-msvc` where
+  numkong's vendored C broke (`immintrin.h` rejected on MSVC ARM64
+  and a `DllMain` symbol that collided with `stringzilla`'s).
+- Numerical contract unchanged: cosine clipped to `[-1, 1]`, zero-
+  norm vectors yield 0.0, f32 inputs accumulated in f64. The 8-lane
+  reduction gives an `O(log N)` error bound comparable to Neumaier
+  compensation for the dimensionalities we serve (256-1536).
+- `cosine_one_to_many` now precomputes the query norm once per call,
+  saving the per-row redundant norm computation that numkong's
+  serial path was doing internally. Modest perf win on long batches.
+
+### Removed
+
+- `numkong` Cargo dep + the doc-comment claims about NumKong's
+  AVX-512 / SVE / SME runtime dispatch. The replacement covers AVX2
+  + NEON via auto-vec, which is the highest-supported ISA on
+  every wheel target except niche AVX-512 servers (where we recover
+  the throughput when LLVM ever auto-vec's 256-bit loops on those
+  cores; benchmarks remain in `docs/benchmarks/similarity-*.json`
+  for the new perf envelope).
+
+
 ## [0.1.0a4] - 2026-05-15
 
 ### Added

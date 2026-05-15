@@ -593,7 +593,7 @@ dependencies = [
 
 [[package]]
 name = "kaos-nlp-core"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.5"
 dependencies = [
  "ahash",
  "aho-corasick",
@@ -605,7 +605,6 @@ dependencies = [
  "fst",
  "icu_properties",
  "lru",
- "numkong",
  "numpy",
  "once_cell",
  "postcard",
@@ -734,15 +733,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841"
 dependencies = [
  "autocfg",
-]
-
-[[package]]
-name = "numkong"
-version = "7.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a75e386ad4a252e96357fd400ed9b5c7afea048447f2fb0906652b47cf2aaa87"
-dependencies = [
- "cc",
 ]
 
 [[package]]

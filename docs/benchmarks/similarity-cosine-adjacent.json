@@ -3,110 +3,110 @@
     {
       "n_rows": 10,
       "dim": 256,
-      "rust_median_ns": 1021,
-      "numpy_median_ns": 2301,
-      "speedup_x": 2.254,
-      "rust_us_per_call": 1.021,
-      "numpy_us_per_call": 2.301
+      "rust_median_ns": 6516,
+      "numpy_median_ns": 2322,
+      "speedup_x": 0.356,
+      "rust_us_per_call": 6.516,
+      "numpy_us_per_call": 2.322
     },
     {
       "n_rows": 10,
       "dim": 384,
-      "rust_median_ns": 1266,
-      "numpy_median_ns": 2377,
-      "speedup_x": 1.878,
-      "rust_us_per_call": 1.266,
-      "numpy_us_per_call": 2.377
+      "rust_median_ns": 9331,
+      "numpy_median_ns": 2394,
+      "speedup_x": 0.257,
+      "rust_us_per_call": 9.331,
+      "numpy_us_per_call": 2.394
     },
     {
       "n_rows": 10,
       "dim": 768,
-      "rust_median_ns": 2010,
-      "numpy_median_ns": 2843,
-      "speedup_x": 1.414,
-      "rust_us_per_call": 2.01,
-      "numpy_us_per_call": 2.843
+      "rust_median_ns": 17853,
+      "numpy_median_ns": 2832,
+      "speedup_x": 0.159,
+      "rust_us_per_call": 17.853,
+      "numpy_us_per_call": 2.832
     },
     {
       "n_rows": 50,
       "dim": 256,
-      "rust_median_ns": 3484,
-      "numpy_median_ns": 3363,
-      "speedup_x": 0.965,
-      "rust_us_per_call": 3.484,
-      "numpy_us_per_call": 3.363
+      "rust_median_ns": 32615,
+      "numpy_median_ns": 3359,
+      "speedup_x": 0.103,
+      "rust_us_per_call": 32.615,
+      "numpy_us_per_call": 3.359
     },
     {
       "n_rows": 50,
       "dim": 384,
-      "rust_median_ns": 4834,
-      "numpy_median_ns": 3875,
-      "speedup_x": 0.802,
-      "rust_us_per_call": 4.834,
-      "numpy_us_per_call": 3.875
+      "rust_median_ns": 48134,
+      "numpy_median_ns": 3826,
+      "speedup_x": 0.079,
+      "rust_us_per_call": 48.134,
+      "numpy_us_per_call": 3.826
     },
     {
       "n_rows": 50,
       "dim": 768,
-      "rust_median_ns": 8897,
-      "numpy_median_ns": 6056,
-      "speedup_x": 0.681,
-      "rust_us_per_call": 8.897,
-      "numpy_us_per_call": 6.056
+      "rust_median_ns": 94564,
+      "numpy_median_ns": 6129,
+      "speedup_x": 0.065,
+      "rust_us_per_call": 94.564,
+      "numpy_us_per_call": 6.129
     },
     {
       "n_rows": 200,
       "dim": 256,
-      "rust_median_ns": 12749,
-      "numpy_median_ns": 7104,
-      "speedup_x": 0.557,
-      "rust_us_per_call": 12.749,
-      "numpy_us_per_call": 7.104
+      "rust_median_ns": 130686,
+      "numpy_median_ns": 7127,
+      "speedup_x": 0.055,
+      "rust_us_per_call": 130.686,
+      "numpy_us_per_call": 7.127
     },
     {
       "n_rows": 200,
       "dim": 384,
-      "rust_median_ns": 18158,
-      "numpy_median_ns": 9967,
-      "speedup_x": 0.549,
-      "rust_us_per_call": 18.158,
-      "numpy_us_per_call": 9.967
+      "rust_median_ns": 190600,
+      "numpy_median_ns": 9327,
+      "speedup_x": 0.049,
+      "rust_us_per_call": 190.6,
+      "numpy_us_per_call": 9.327
     },
     {
       "n_rows": 200,
       "dim": 768,
-      "rust_median_ns": 34478,
-      "numpy_median_ns": 18043,
-      "speedup_x": 0.523,
-      "rust_us_per_call": 34.478,
-      "numpy_us_per_call": 18.043
+      "rust_median_ns": 382556,
+      "numpy_median_ns": 13474,
+      "speedup_x": 0.035,
+      "rust_us_per_call": 382.556,
+      "numpy_us_per_call": 13.474
     },
     {
       "n_rows": 1000,
       "dim": 256,
-      "rust_median_ns": 61885,
-      "numpy_median_ns": 28343,
-      "speedup_x": 0.458,
-      "rust_us_per_call": 61.885,
-      "numpy_us_per_call": 28.343
+      "rust_median_ns": 405461,
+      "numpy_median_ns": 21692,
+      "speedup_x": 0.053,
+      "rust_us_per_call": 405.461,
+      "numpy_us_per_call": 21.692
     },
     {
       "n_rows": 1000,
       "dim": 384,
-      "rust_median_ns": 89352,
-      "numpy_median_ns": 40944,
-      "speedup_x": 0.458,
-      "rust_us_per_call": 89.352,
-      "numpy_us_per_call": 40.944
+      "rust_median_ns": 580402,
+      "numpy_median_ns": 33922,
+      "speedup_x": 0.058,
+      "rust_us_per_call": 580.402,
+      "numpy_us_per_call": 33.922
     },
     {
       "n_rows": 1000,
       "dim": 768,
-      "rust_median_ns": 171536,
-      "numpy_median_ns": 85950,
-      "speedup_x": 0.501,
-      "rust_us_per_call": 171.536,
-      "numpy_us_per_call": 85.95
+      "rust_median_ns": 1140684,
+      "numpy_median_ns": 67113,
+      "speedup_x": 0.059,
+      "rust_us_per_call": 1140.684,
+      "numpy_us_per_call": 67.113
     }
   ]
 }

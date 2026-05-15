@@ -1,14 +1,12 @@
 //! Dense-vector cosine / dot / Euclidean primitives.
 //!
-//! All compute routes through the `numkong` crate's `SpatialSimilarity`
-//! / `Dot` traits, which dispatch to the best available SIMD kernel at
-//! runtime. The functions here are thin Rust wrappers that:
+//! All compute routes through the portable f32-with-f64-accumulator
+//! kernels in [`crate::core::similarity::kernels`]. The functions
+//! here are thin wrappers that:
 //!
 //! 1. Validate input shapes (lengths, non-zero rows, dim agreement).
-//! 2. Map NumKong's "angular distance" (`1 - cos`) into "cosine
-//!    similarity" (`cos`) and clip the well-known floating-point
-//!    overshoot (cosine of nearly-parallel vectors can drift to
-//!    `1.0 + 1e-7` after f64 rounding — we clamp to `[-1, 1]`).
+//! 2. Call the [`kernels::cosine_f32`] / [`kernels::dot_f32_to_f64`]
+//!    primitive with the validated slices.
 //! 3. Surface a typed `SimilarityError` for the small set of
 //!    invariant violations callers care about.
 //!
@@ -16,17 +14,16 @@
 //! ------------------
 //!
 //! * Input vectors are `&[f32]` (we do not currently expose f64 or
-//!   half-precision — that's a follow-on follow the precedent in
-//!   the existing `SimilarityMatrix` once a consumer needs it).
+//!   half-precision -- that's a follow-on once a consumer needs it).
 //! * Empty inputs return `Err(SimilarityError::EmptyInput)`.
 //! * Length mismatch returns `Err(SimilarityError::DimensionMismatch)`.
 //! * Vectors of all-zero (zero L2 norm) yield cosine = 0.0 by
 //!   convention (the only sensible answer when the angle is
 //!   undefined).
-//! * Cosine results are clipped to `[-1.0, 1.0]` to absorb f64
-//!   round-off near `±1`.
+//! * Cosine results are clipped to `[-1.0, 1.0]` inside the kernel
+//!   to absorb f64 round-off near `+/-1`.
 
-use numkong::{Angular, Dot};
+use super::kernels::{cosine_f32, dot_f32_to_f64, norm_sq_f32_to_f64};
 use thiserror::Error;
 
 /// Errors surfaced by the dense-similarity primitives.
@@ -51,15 +48,14 @@ pub enum SimilarityError {
 /// untouched (no division by zero) and the function returns
 /// `Ok(false)`; non-zero norms return `Ok(true)`.
 ///
-/// The normalisation uses the NumKong-accumulated `f32::dot` to compute
-/// the squared norm, so the result inherits the same compensated-sum
-/// numerical accuracy as the cosine kernel itself.
+/// The normalisation uses the portable f64-accumulating dot kernel
+/// so the result inherits the same numerical accuracy as the cosine
+/// path.
 pub fn l2_normalize_in_place(vec: &mut [f32]) -> Result<bool, SimilarityError> {
     if vec.is_empty() {
         return Err(SimilarityError::EmptyInput);
     }
-    // NumKong's dot accumulates in f64 with Neumaier compensation.
-    let sq: f64 = f32::dot(vec, vec).unwrap_or(0.0);
+    let sq: f64 = norm_sq_f32_to_f64(vec);
     if sq <= 0.0 {
         return Ok(false);
     }
@@ -72,11 +68,10 @@ pub fn l2_normalize_in_place(vec: &mut [f32]) -> Result<bool, SimilarityError> {
 
 /// Cosine similarity between two equal-length `f32` vectors.
 ///
-/// Returns a value in `[-1.0, 1.0]`. The naive numpy implementation
-/// would compute `(a @ b) / (||a|| * ||b||)`; NumKong fuses these into
-/// a single pass with f64 compensated accumulators and an
-/// `rsqrt`-based normalization for higher numerical stability on long
-/// vectors.
+/// Returns a value in `[-1.0, 1.0]`. The portable kernel computes
+/// the dot product and both squared norms in one pass each over the
+/// data, accumulating into f64 with 8 parallel lanes so the inner
+/// loop auto-vectorises on AVX2 / NEON.
 pub fn cosine(a: &[f32], b: &[f32]) -> Result<f32, SimilarityError> {
     if a.is_empty() || b.is_empty() {
         return Err(SimilarityError::EmptyInput);
@@ -87,10 +82,7 @@ pub fn cosine(a: &[f32], b: &[f32]) -> Result<f32, SimilarityError> {
             b: b.len(),
         });
     }
-    // NumKong returns angular distance = 1 - cos.
-    let ang: f64 = f32::angular(a, b).unwrap_or(1.0);
-    let cos: f64 = 1.0_f64 - ang;
-    Ok(cos.clamp(-1.0_f64, 1.0_f64) as f32)
+    Ok(cosine_f32(a, b))
 }
 
 /// Cosine similarity of one query vector against many rows.
@@ -102,9 +94,9 @@ pub fn cosine(a: &[f32], b: &[f32]) -> Result<f32, SimilarityError> {
 ///
 /// This is the hot path for retrieval (`EmbeddingRetriever.retrieve`,
 /// `SearchableDocument.search`, `SearchableCorpus.search`,
-/// `kmedoid_seeds`). NumKong dispatches to AVX-512 / AVX2 / NEON
-/// internally; we don't release the GIL here because that's the
-/// caller's (PyO3 binding's) responsibility.
+/// `kmedoid_seeds`). We pre-compute the query's squared norm once
+/// (no per-row redundant work) and call the portable kernel per row.
+/// GIL release is the caller's (PyO3 binding's) responsibility.
 pub fn cosine_one_to_many(
     query: &[f32],
     matrix: &[f32],
@@ -127,11 +119,25 @@ pub fn cosine_one_to_many(
         });
     }
     let n_rows = matrix.len() / dim;
+    // Pre-compute the query's squared norm: this is a per-call invariant
+    // shared across every row, and pulling it out of the loop is the
+    // single biggest perf win in the one-to-many shape.
+    let q_norm_sq = norm_sq_f32_to_f64(query);
+    let q_norm = q_norm_sq.sqrt();
     let mut out = Vec::with_capacity(n_rows);
     for row_index in 0..n_rows {
         let row = &matrix[row_index * dim..(row_index + 1) * dim];
-        let ang: f64 = f32::angular(query, row).unwrap_or(1.0);
-        let cos: f64 = (1.0_f64 - ang).clamp(-1.0_f64, 1.0_f64);
+        if q_norm == 0.0 {
+            out.push(0.0);
+            continue;
+        }
+        let r_norm = norm_sq_f32_to_f64(row).sqrt();
+        if r_norm == 0.0 {
+            out.push(0.0);
+            continue;
+        }
+        let dot = dot_f32_to_f64(query, row);
+        let cos = (dot / (q_norm * r_norm)).clamp(-1.0, 1.0);
         out.push(cos as f32);
     }
     Ok(out)
@@ -162,9 +168,7 @@ pub fn cosine_adjacent(matrix: &[f32], dim: usize) -> Result<Vec<f32>, Similarit
     for i in 0..n_rows - 1 {
         let a = &matrix[i * dim..(i + 1) * dim];
         let b = &matrix[(i + 1) * dim..(i + 2) * dim];
-        let ang: f64 = f32::angular(a, b).unwrap_or(1.0);
-        let cos: f64 = (1.0_f64 - ang).clamp(-1.0_f64, 1.0_f64);
-        out.push(cos as f32);
+        out.push(cosine_f32(a, b));
     }
     Ok(out)
 }
