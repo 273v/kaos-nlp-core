@@ -1,0 +1,7 @@
+{
+  "fn": "intersection",
+  "input_chunks": 100000,
+  "elapsed_seconds": 0.038,
+  "throughput_chunks_per_sec": 2631942.2,
+  "result_size": 0
+}

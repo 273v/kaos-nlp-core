@@ -41,6 +41,19 @@ classifiers = [
   "Typing :: Typed",
 ]
 
+dependencies = [
+  # numpy backs the dense-vector similarity layer
+  # (``kaos_nlp_core.similarity``), the chunker/aggregation Rust-binding
+  # marshallers, and the structured retrieval helpers — all eagerly
+  # imported via the top-level ``kaos_nlp_core/__init__.py``. Floor
+  # tracks the lowest version that ships cp313 wheels (verified via
+  # PyPI JSON API; numpy 2.0 has zero cp313 wheels, 2.1 has 18).
+  # Without this floor, the ``Test against minimum dependencies`` CI
+  # job resolves numpy==1.26.0, which has no cp313 wheel and triggers
+  # an sdist build that fails on the runner (no BLAS).
+  "numpy>=2.1",
+]
+
 [project.scripts]
 kaos-nlp = "kaos_nlp_core.cli:main"
 kaos-nlp-serve = "kaos_nlp_core.serve:main"

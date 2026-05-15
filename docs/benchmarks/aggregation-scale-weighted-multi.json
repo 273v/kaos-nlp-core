@@ -1,0 +1,8 @@
+{
+  "fn": "weighted",
+  "mode": "multi",
+  "input_chunks": 100000,
+  "elapsed_seconds": 0.03,
+  "throughput_chunks_per_sec": 3370893.2,
+  "result_size": 2
+}

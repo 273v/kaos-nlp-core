@@ -21,6 +21,24 @@ It is dependency-light: the BASE install pulls only `kaos-nlp-core`
 itself plus the bundled Punkt sentence-segmenter model (~12 MB).
 Optional extras layer in the rest of the KAOS ecosystem.
 
+## Use and authorship disclosure
+
+`kaos-nlp-core` provides **deterministic** primitives — segmentation,
+chunking, tokenization, search, aggregation, hashing — that take
+text in and produce text spans / scores / hashes back. No network
+calls, no LLM calls, no provider-side data transmission happens
+from this package; everything runs in-process. Downstream consumers
+(notably `kaos-llm-core` Programs) may transmit text derived from
+these primitives to LLM providers, so callers handling sensitive
+data should check the consuming package's data-handling disclosure.
+
+This codebase is AI-assisted: substantial portions were generated
+with Claude (Anthropic) and human-reviewed before commit. Public
+behavior is covered by the test suite under `tests/`; large-corpus
+scale tests are opt-in (`pytest tests/scale -m slow`) and require
+the HF JSONL fixtures (USC, EDGAR, patents). Bug reports welcome
+via GitHub Issues; security reports follow [`SECURITY.md`](SECURITY.md).
+
 ## Install
 
 ```bash

@@ -1,0 +1,7 @@
+{
+  "fn": "max_score",
+  "input_chunks": 100000,
+  "elapsed_seconds": 0.031,
+  "throughput_chunks_per_sec": 3221845.8,
+  "result": "real_estate"
+}

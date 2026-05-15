@@ -8,6 +8,176 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+## [0.1.0a4] - 2026-05-15
+
+### Added
+
+- **Rust chunking kernels** (`rust/core/chunking/`) — the greedy
+  unit packer that drives every concrete chunker
+  (Fixed / Sentence / Paragraph / Section / Hierarchical) is now in
+  Rust as `pack_units(starts, ends, token_counts, max_tokens,
+  overlap_units)`, returning five parallel ``uint32`` arrays
+  describing the resulting groups. A second kernel
+  ``semantic_pack(..., adj_sim, drop_threshold)`` covers
+  ``kaos_nlp_transformers.SemanticChunker``'s budget+topic-shift
+  scan. Both run with the GIL released via ``py.detach``. The
+  Python wrappers in ``kaos_nlp_core.chunking._pack`` (and
+  ``SemanticChunker._pack``) marshal `_Unit` lists / numpy
+  embeddings into the CSR-style input format, then materialise
+  Chunks from the Rust groups. Behaviour is bit-identical to the
+  prior pure-Python loop (244 chunker tests + 26 SemanticChunker
+  tests + scale tests verify).
+- **Rust aggregation kernels** (`rust/core/aggregation/`) — all six
+  primitives (`vote`, `majority`, `union`, `intersection`,
+  `weighted_single` / `weighted_multi`, `max_score_single` /
+  `max_score_multi`) now run in Rust. The Python wrappers in
+  ``kaos_nlp_core.aggregation`` intern string label names to
+  ``u32`` ids preserving first-appearance order (so the
+  "lowest first_seen wins" tiebreak maps to "lowest id wins" in
+  Rust), then dispatch through a CSR-style ragged-array
+  representation. Kernels are pure functions of their inputs and
+  free of hash-randomization side-channels; the existing
+  determinism test suite (`test_aggregation_determinism.py`)
+  passes unchanged. Benchmark report at
+  ``docs/benchmarks/aggregation-rust-vs-python.json``.
+- **`numpy` declared as a runtime dependency** — the dense similarity,
+  chunker, and aggregation Rust bindings all marshal through
+  ``numpy.ndarray``; the top-level ``kaos_nlp_core`` package
+  unconditionally imports them. Declares ``numpy>=1.26`` in
+  ``[project.dependencies]`` to make the existing transitive
+  requirement explicit. Affects downstream wheels (kaos-llm-core,
+  kaos-nlp-transformers, etc.) that consume kaos-nlp-core's
+  public surface — numpy will be pulled in automatically.
+- **`kaos_nlp_core.similarity`** — new module exposing
+  hardware-accelerated dense-vector primitives. Backed by the
+  vendored NumKong C kernels (successor to SimSIMD; Apache-2.0)
+  routed through a thin Rust+PyO3 layer at
+  ``rust/core/similarity/`` and ``rust/bindings/similarity.rs``.
+  Public surface:
+  - ``cosine(a, b) -> float`` — single-pair cosine similarity.
+  - ``cosine_one_to_many(query, matrix) -> ndarray`` — one query vs
+    every row.
+  - ``cosine_adjacent(matrix) -> ndarray`` — cos of every adjacent
+    row pair (semantic chunker).
+  - ``top_k_cosine(query, matrix, k) -> TopKResult`` — heap-based
+    selection with ascending-index tiebreak.
+  - ``mmr_select(matrix, relevance, k, lambda_) -> MMRResult`` —
+    Maximal Marginal Relevance.
+  - ``l2_normalize_in_place(vector) -> bool`` — unit-norm in place.
+  - `TopKResult` and `MMRResult` typed `@dataclass(frozen=True,
+    slots=True)` result containers.
+  - Runtime dispatch (AVX-512 / AVX2 / NEON / SVE / scalar) chosen
+    by NumKong's CPU-feature probe. f32 accumulates in f64 with
+    Neumaier-Kahan-Babuška compensation; cosine results clipped to
+    ``[-1, 1]``; zero-norm vectors return ``0.0``; ties broken by
+    ascending row index.
+  - Benchmarks under ``docs/benchmarks/similarity-*.json`` track
+    Rust-vs-numpy across the dim x corpus-size grid. Real wins on
+    long workloads (17-67x on 1000-row x 768-d cosine + MMR); numpy
+    competitive or faster on small dim=256 / n=100 cases where PyO3
+    boundary overhead dominates.
+
+### Documentation
+
+- **Use + AI-authorship disclosure** added to the README. Notes
+  that `kaos-nlp-core` is fully deterministic and local (no LLM
+  calls, no network) but that downstream consumers may transmit
+  derived text to LLM providers. AI-assisted authorship disclosure
+  (Claude, Anthropic; human-reviewed) added.
+
+### Fixed
+
+- **`SentenceChunker` allocates less metadata per chunk.** Previously
+  each `_Unit` carried a per-sentence
+  `metadata={"sentence_confidence": ...}` dict, which the packer
+  then copied into a merged dict, which ``Chunk.__post_init__``
+  then re-wrapped in ``MappingProxyType(dict(...))`` — three
+  allocations per chunk. ``sentence_confidence`` is never consumed
+  downstream (verified by grep across all three repos), and the
+  underlying ``Segment.confidence`` value remains available on the
+  raw Punkt output. Now: the unit metadata is omitted (no
+  per-sentence dict), and the shared
+  ``_pack._EMPTY_METADATA_DICT`` sentinel replaces the
+  ``metadata or {}`` allocation when no metadata is supplied. Net:
+  measurably fewer dict allocations on the SentenceChunker hot
+  path; previously the 1000-USC-doc scale run reported a 253 MB
+  RSS delta.
+
+- **`vote`, `majority`, and `weighted` aggregation primitives are now
+  deterministic across processes.** Previously they iterated each
+  chunk's labels via ``for name in set(chunk_labels)``, which uses
+  Python's hash-randomized set iteration order — so the ``first_seen``
+  map (and therefore the documented "ties broken by order of first
+  appearance" tiebreak) silently depended on ``PYTHONHASHSEED`` and
+  could disagree across processes. Replaced ``set(chunk_labels)``
+  with ``dict.fromkeys(chunk_labels)`` in all three functions
+  (`/python/kaos_nlp_core/aggregation/__init__.py`); the dedup is
+  identical but insertion order is preserved. New regression test
+  suite in `tests/test_aggregation_determinism.py` runs each
+  function under six different ``PYTHONHASHSEED`` values in fresh
+  subprocesses and asserts identical winners.
+
+### Added
+
+- **`kaos_nlp_core.chunking`** — new module for document chunking
+  primitives. Phase 0 + Phase 1 of the summarization/classification
+  cross-module plan.
+  - **Foundation types** (Phase 0):
+    - `Chunk` — frozen, slotted dataclass holding ``text``, ``start``,
+      ``end``, ``parent_id``, deterministic ``chunk_id``, optional
+      ``token_count``/``depth``, and read-only ``metadata``.
+    - `Chunker` — runtime-checkable protocol for callables that split
+      a source string into ``list[Chunk]``.
+    - `compute_chunk_id` — deterministic SHA-256-based identifier
+      function (32-char hex digest of
+      ``parent_id|start|end|text``).
+    - `validate_chunk_offsets` — round-trip helper that asserts
+      ``source[chunk.start:chunk.end] == chunk.text``.
+  - **Concrete chunkers** (Phase 1):
+    - `FixedTokenChunker` — sliding character-window chunker sized
+      by an approximate token budget with optional overlap.
+    - `SentenceChunker` — Punkt-backed sentence packer that respects
+      sentence boundaries up to the token budget; oversize sentences
+      emit alone.
+    - `ParagraphChunker` — paragraph-aware packer that falls back to
+      :class:`SentenceChunker` for oversize paragraphs.
+    - `SectionChunker` — detects enumerator-bearing sections
+      (``1.``, ``§``, ``Article``, ``# Heading``, etc.) via
+      :func:`segment_lines` + :func:`parse_enumerator`, then chunks
+      within each section.
+    - `HierarchicalChunker` — multi-depth chunker emitting
+      section-level (``depth=0``), paragraph-level (``depth=1``),
+      and sentence-level (``depth=2``) chunks in a single flat
+      list, each tagged with its ``level`` and ``section_*``
+      metadata for tree reconstruction.
+    - `default_token_counter` — public ``ceil(chars / 4)``
+      approximation; pluggable per chunker via
+      ``token_counter=...``.
+  - `chunking` is re-exported from ``kaos_nlp_core`` and listed in
+    ``__all__``.
+  - Determinism, round-trip offsets (``source[c.start:c.end] ==
+    c.text``), Unicode/CJK/emoji round-trip, ``parent_id``
+    propagation, and ordering are property-checked across all
+    chunkers in ``tests/test_chunking_chunkers.py``.
+  - Benchmark harness in ``tests/bench_chunking.py``.
+
+- **`kaos_nlp_core.aggregation`** — new module of pure, deterministic
+  label-aggregation primitives consumed by the
+  :class:`~kaos_llm_core.composition.aggregate.Aggregator` strategy
+  classes in ``kaos-llm-core``. Phase 2 of the
+  summarization/classification cross-module plan.
+  - `vote(per_chunk)` — plurality, ties broken by first appearance.
+  - `majority(per_chunk, threshold=0.5)` — threshold-gated majority.
+  - `union(per_chunk)` — multi-label any-chunk union.
+  - `intersection(per_chunk)` — multi-label every-chunk intersection.
+  - `weighted(per_chunk, weights, threshold, multi)` — weighted
+    aggregation supporting both single-label and multi-label modes.
+  - `max_score(per_chunk_scores, multi, threshold)` — aggregate by
+    the highest single-chunk score per label.
+  - ``aggregation`` is re-exported from ``kaos_nlp_core`` and listed
+    in ``__all__``.
+
 ## [0.1.0a3] — 2026-05-11
 
 ### Changed

@@ -4,8 +4,10 @@
 
 #![allow(missing_docs)]
 
+pub(crate) mod aggregation;
 pub(crate) mod algorithms;
 pub(crate) mod characters;
+pub(crate) mod chunking;
 pub(crate) mod diff;
 pub(crate) mod hashing;
 pub(crate) mod lexicon;
@@ -13,6 +15,7 @@ pub(crate) mod matching;
 pub(crate) mod quality;
 pub(crate) mod searcher;
 pub(crate) mod segmentation;
+pub(crate) mod similarity;
 pub(crate) mod spans;
 pub(crate) mod structure;
 pub(crate) mod structures;

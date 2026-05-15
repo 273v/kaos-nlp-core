@@ -1,0 +1,29 @@
+{
+  "label": "Section@USC",
+  "documents": 1000,
+  "chunks": 11290,
+  "empty_documents": 0,
+  "exceptions": [],
+  "bad_offset_examples": [],
+  "elapsed_seconds": 0.556,
+  "rss_before_mb": 1733.4,
+  "rss_after_mb": 1733.4,
+  "rss_delta_mb": 0.0,
+  "chunks_per_sec": 20302.7,
+  "docs_per_sec": 1798.3,
+  "chunk_token_count": {
+    "min": 2,
+    "p50": 32.0,
+    "p95": 956.0,
+    "p99": 1016.09,
+    "max": 6119,
+    "mean": 139.3
+  },
+  "chunks_per_doc": {
+    "min": 1,
+    "p50": 7.0,
+    "p95": 37.0,
+    "max": 226,
+    "mean": 11.3
+  }
+}

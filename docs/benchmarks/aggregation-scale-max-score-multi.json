@@ -1,0 +1,9 @@
+{
+  "fn": "max_score",
+  "mode": "multi",
+  "threshold": 0.9,
+  "input_chunks": 100000,
+  "elapsed_seconds": 0.026,
+  "throughput_chunks_per_sec": 3820381.2,
+  "result_size": 12
+}

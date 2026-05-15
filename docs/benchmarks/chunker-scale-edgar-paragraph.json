@@ -1,0 +1,29 @@
+{
+  "label": "Paragraph@EDGAR",
+  "documents": 200,
+  "chunks": 5640,
+  "empty_documents": 0,
+  "exceptions": [],
+  "bad_offset_examples": [],
+  "elapsed_seconds": 0.946,
+  "rss_before_mb": 1780.4,
+  "rss_after_mb": 1780.4,
+  "rss_delta_mb": 0.0,
+  "chunks_per_sec": 5964.9,
+  "docs_per_sec": 211.5,
+  "chunk_token_count": {
+    "min": 1,
+    "p50": 916.0,
+    "p95": 1023.0,
+    "p99": 1053.59,
+    "max": 5794,
+    "mean": 839.6
+  },
+  "chunks_per_doc": {
+    "min": 1,
+    "p50": 11.0,
+    "p95": 123.85,
+    "max": 739,
+    "mean": 28.2
+  }
+}

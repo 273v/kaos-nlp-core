@@ -1,0 +1,112 @@
+{
+  "grid": [
+    {
+      "n_rows": 10,
+      "dim": 256,
+      "rust_median_ns": 1021,
+      "numpy_median_ns": 2301,
+      "speedup_x": 2.254,
+      "rust_us_per_call": 1.021,
+      "numpy_us_per_call": 2.301
+    },
+    {
+      "n_rows": 10,
+      "dim": 384,
+      "rust_median_ns": 1266,
+      "numpy_median_ns": 2377,
+      "speedup_x": 1.878,
+      "rust_us_per_call": 1.266,
+      "numpy_us_per_call": 2.377
+    },
+    {
+      "n_rows": 10,
+      "dim": 768,
+      "rust_median_ns": 2010,
+      "numpy_median_ns": 2843,
+      "speedup_x": 1.414,
+      "rust_us_per_call": 2.01,
+      "numpy_us_per_call": 2.843
+    },
+    {
+      "n_rows": 50,
+      "dim": 256,
+      "rust_median_ns": 3484,
+      "numpy_median_ns": 3363,
+      "speedup_x": 0.965,
+      "rust_us_per_call": 3.484,
+      "numpy_us_per_call": 3.363
+    },
+    {
+      "n_rows": 50,
+      "dim": 384,
+      "rust_median_ns": 4834,
+      "numpy_median_ns": 3875,
+      "speedup_x": 0.802,
+      "rust_us_per_call": 4.834,
+      "numpy_us_per_call": 3.875
+    },
+    {
+      "n_rows": 50,
+      "dim": 768,
+      "rust_median_ns": 8897,
+      "numpy_median_ns": 6056,
+      "speedup_x": 0.681,
+      "rust_us_per_call": 8.897,
+      "numpy_us_per_call": 6.056
+    },
+    {
+      "n_rows": 200,
+      "dim": 256,
+      "rust_median_ns": 12749,
+      "numpy_median_ns": 7104,
+      "speedup_x": 0.557,
+      "rust_us_per_call": 12.749,
+      "numpy_us_per_call": 7.104
+    },
+    {
+      "n_rows": 200,
+      "dim": 384,
+      "rust_median_ns": 18158,
+      "numpy_median_ns": 9967,
+      "speedup_x": 0.549,
+      "rust_us_per_call": 18.158,
+      "numpy_us_per_call": 9.967
+    },
+    {
+      "n_rows": 200,
+      "dim": 768,
+      "rust_median_ns": 34478,
+      "numpy_median_ns": 18043,
+      "speedup_x": 0.523,
+      "rust_us_per_call": 34.478,
+      "numpy_us_per_call": 18.043
+    },
+    {
+      "n_rows": 1000,
+      "dim": 256,
+      "rust_median_ns": 61885,
+      "numpy_median_ns": 28343,
+      "speedup_x": 0.458,
+      "rust_us_per_call": 61.885,
+      "numpy_us_per_call": 28.343
+    },
+    {
+      "n_rows": 1000,
+      "dim": 384,
+      "rust_median_ns": 89352,
+      "numpy_median_ns": 40944,
+      "speedup_x": 0.458,
+      "rust_us_per_call": 89.352,
+      "numpy_us_per_call": 40.944
+    },
+    {
+      "n_rows": 1000,
+      "dim": 768,
+      "rust_median_ns": 171536,
+      "numpy_median_ns": 85950,
+      "speedup_x": 0.501,
+      "rust_us_per_call": 171.536,
+      "numpy_us_per_call": 85.95
+    }
+  ]
+}

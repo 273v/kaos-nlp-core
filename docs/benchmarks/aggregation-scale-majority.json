@@ -1,0 +1,7 @@
+{
+  "fn": "majority",
+  "input_chunks": 100000,
+  "elapsed_seconds": 0.033,
+  "throughput_chunks_per_sec": 3074557.3,
+  "result": "governing_law"
+}

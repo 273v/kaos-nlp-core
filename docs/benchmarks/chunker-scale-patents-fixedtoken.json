@@ -1,0 +1,29 @@
+{
+  "label": "FixedToken@Patents",
+  "documents": 200,
+  "chunks": 9729,
+  "empty_documents": 0,
+  "exceptions": [],
+  "bad_offset_examples": [],
+  "elapsed_seconds": 0.033,
+  "rss_before_mb": 1800.6,
+  "rss_after_mb": 1800.6,
+  "rss_delta_mb": 0.0,
+  "chunks_per_sec": 293262.3,
+  "docs_per_sec": 6028.6,
+  "chunk_token_count": {
+    "min": 66,
+    "p50": 512,
+    "p95": 512.0,
+    "p99": 512.0,
+    "max": 512,
+    "mean": 507.7
+  },
+  "chunks_per_doc": {
+    "min": 8,
+    "p50": 39.5,
+    "p95": 105.0,
+    "max": 293,
+    "mean": 48.6
+  }
+}

@@ -1,6 +1,6 @@
 [package]
 name = "kaos-nlp-core"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 edition = "2021"
 license = "Apache-2.0"
 authors = ["273 Ventures LLC <it@273ventures.com>"]
@@ -24,7 +24,7 @@ crate-type = ["cdylib", "rlib"]
 
 [features]
 default = ["python"]
-python = ["pyo3"]
+python = ["pyo3", "numpy"]
 
 # --- Core dependencies ---
 [dependencies]
@@ -32,6 +32,18 @@ python = ["pyo3"]
 # minor (3.13, 3.14, 3.15, ...). Without this flag, every new Python minor
 # requires a re-release.
 pyo3 = { version = "0.28", features = ["extension-module", "abi3-py313"], optional = true }
+# NumPy interop — zero-copy reads of PyArray1<f32> / PyArray2<f32> +
+# owned-Vec<f32> → PyArray1<f32> output handoff for the
+# `core::similarity` module's PyO3 bindings. Pinned to the same minor
+# as `pyo3`; the `numpy` crate's PyO3 compat matrix requires matching
+# minors. Gated on the `python` feature (default-on) for the same
+# reason `pyo3` itself is gated — both are needed *only* at the
+# Python binding layer. Every published wheel ships both because
+# `default = ["python"]`. The gate exists so the pure-Rust test path
+# (`cargo test --no-default-features`) can exercise `rust/core/`
+# without dragging in PyO3 / numpy; it is not a user-facing on/off
+# knob.
+numpy = { version = "0.28", optional = true }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 # postcard: bincode (all versions) is unmaintained (RUSTSEC-2025-0141 — the
@@ -59,6 +71,18 @@ strsim = "0.11"
 # fixes OOB reads in `sz_find_skylake` / `sz_rfind_skylake` for null-byte
 # needles and a signed-char bug in `sz_find_byte_serial`. No Rust API change.
 stringzilla = "4.6.1"
+
+# SIMD-accelerated dense-vector distance / similarity kernels. NumKong is the
+# successor to SimSIMD (same author and vendored C core, rebranded). One-shot
+# and batch (cdist-style) kernels with runtime dispatch across AVX-512 /
+# AVX2 / NEON / SVE / SVE2 / SME / Sapphire AMX / scalar fallback, plus
+# dtype-aware accumulator promotion (f32→f64 with Neumaier-Kahan-Babuška
+# compensation; i8→i32; f16/bf16→f32). Vendored C source compiled by
+# build.rs into a static lib; no system BLAS, no Fortran, no nightly Rust.
+# License Apache-2.0; MSRV 1.64 (we're at 1.83+). Same vendoring pattern as
+# `stringzilla` above. Audit notes: single upstream maintainer — pinned at
+# minor 7.6 so an upstream regression can't break our wheel matrix.
+numkong = "7.6"
 
 # Multi-pattern matching (Aho-Corasick)
 aho-corasick = "1.1"
