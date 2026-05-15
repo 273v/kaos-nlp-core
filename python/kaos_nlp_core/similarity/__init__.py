@@ -4,17 +4,33 @@ Companion to :mod:`kaos_nlp_core.algorithms` (string similarity),
 :mod:`kaos_nlp_core.aggregation` (label aggregation), and the sparse
 matrix types in :mod:`kaos_nlp_core.structures`. This module covers
 the **dense f32 vector** case: cosine similarity, top-k retrieval,
-MMR reranking, and L2 normalization, all routed through the
-NumKong-backed Rust core for SIMD-accelerated execution (AVX-512 /
-AVX2 / NEON / SVE / scalar fallback chosen at runtime).
+MMR reranking, and L2 normalization, all routed through hand-written
+``std::arch`` SIMD kernels in Rust with runtime ISA dispatch (AVX-512F
+/ AVX2+FMA / NEON / scalar fallback). The kernel pattern is ported
+from NumKong (Apache-2.0); see ``docs/design-similarity-simd.md``.
 
 Surface
 -------
+
+Generic path (computes both norms — safe default):
 
 - :func:`cosine` — single pair cosine similarity.
 - :func:`cosine_one_to_many` — cos(query, every row of a matrix).
 - :func:`cosine_adjacent` — cos(M[i], M[i+1]) for every adjacent
   pair; used by the semantic chunker.
+
+Pre-normalised fast path — for callers that guarantee unit-norm
+inputs (skips both norm computations + final sqrt; ~2x faster at
+production shapes):
+
+- :func:`cosine_normalized` — single pair, both inputs unit-norm.
+- :func:`cosine_one_to_many_normalized` — unit-norm query against a
+  matrix of unit-norm rows.
+- :func:`cosine_adjacent_normalized` — adjacent-row cosine on a
+  matrix of unit-norm rows.
+
+Selection / reranking:
+
 - :func:`top_k_cosine` — argpartition + sort, returns
   :class:`TopKResult`.
 - :func:`mmr_select` — Maximal Marginal Relevance reranking, returns
@@ -55,7 +71,10 @@ import numpy as np
 from kaos_nlp_core._rust.similarity import (
     cosine,
     cosine_adjacent,
+    cosine_adjacent_normalized,
+    cosine_normalized,
     cosine_one_to_many,
+    cosine_one_to_many_normalized,
     l2_normalize_in_place,
 )
 from kaos_nlp_core._rust.similarity import (
@@ -182,7 +201,10 @@ __all__ = [
     "TopKResult",
     "cosine",
     "cosine_adjacent",
+    "cosine_adjacent_normalized",
+    "cosine_normalized",
     "cosine_one_to_many",
+    "cosine_one_to_many_normalized",
     "l2_normalize_in_place",
     "mmr_select",
     "top_k_cosine",
