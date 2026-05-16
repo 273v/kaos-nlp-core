@@ -1,29 +1,29 @@
 {
   "label": "Hierarchical@EDGAR",
   "documents": 200,
-  "chunks": 39353,
+  "chunks": 39245,
   "empty_documents": 0,
   "exceptions": [],
   "bad_offset_examples": [],
-  "elapsed_seconds": 1.416,
-  "rss_before_mb": 1800.4,
-  "rss_after_mb": 1800.6,
-  "rss_delta_mb": 0.2,
-  "chunks_per_sec": 27792.0,
-  "docs_per_sec": 141.2,
+  "elapsed_seconds": 1.795,
+  "rss_before_mb": 1798.6,
+  "rss_after_mb": 1798.8,
+  "rss_delta_mb": 0.1,
+  "chunks_per_sec": 21864.2,
+  "docs_per_sec": 111.4,
   "chunk_token_count": {
     "min": 1,
     "p50": 113,
-    "p95": 921.0,
-    "p99": 1621.0,
+    "p95": 910.0,
+    "p99": 1595.16,
     "max": 91504,
-    "mean": 244.2
+    "mean": 241.6
   },
   "chunks_per_doc": {
     "min": 2,
-    "p50": 80.0,
-    "p95": 915.85,
-    "max": 2147,
-    "mean": 196.8
+    "p50": 79.5,
+    "p95": 911.95,
+    "max": 2137,
+    "mean": 196.2
   }
 }

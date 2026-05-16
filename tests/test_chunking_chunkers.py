@@ -367,15 +367,57 @@ class TestHierarchicalChunker:
             assert chunk.metadata["level"] == "paragraph"
 
     def test_sentence_subdivision_when_paragraph_oversize(self) -> None:
-        # Force a depth-2 sentence breakdown.
+        # Depth-2 sentence subdivision should fire when the injected
+        # SentenceChunker has a tighter budget than the surrounding
+        # ParagraphChunker — that is the case where re-splitting actually
+        # adds granularity beyond depth-1.
         big_paragraph = ". ".join("S" + str(i) for i in range(50)) + "."
         text = big_paragraph + "\n\nShort.\n"
-        chunker = HierarchicalChunker(max_tokens=10)
+        chunker = HierarchicalChunker(
+            max_tokens=10,
+            sentence_chunker=SentenceChunker(max_tokens=4),
+        )
         chunks = chunker.chunk(text, parent_id="doc-1")
         sentence_chunks = [c for c in chunks if c.depth == 2]
         assert sentence_chunks, "expected sentence-level chunks when paragraph oversize"
         for chunk in sentence_chunks:
             assert chunk.metadata["level"] == "sentence"
+
+    def test_depth_two_suppressed_when_sentence_split_is_noop(self) -> None:
+        # When the injected SentenceChunker has the same budget as the
+        # ParagraphChunker (the default), re-splitting a sub-chunk just
+        # returns the same single chunk back. The HierarchicalChunker
+        # should suppress depth-2 emission in that case so callers do
+        # not see duplicate depth=1 / depth=2 pairs.
+        big_paragraph = ". ".join("S" + str(i) for i in range(50)) + "."
+        text = big_paragraph + "\n\nShort.\n"
+        chunker = HierarchicalChunker(max_tokens=10)
+        chunks = chunker.chunk(text, parent_id="doc-1")
+        depth_two = [c for c in chunks if c.depth == 2]
+        assert depth_two == [], "depth-2 must be suppressed when sentence-split returns one chunk"
+
+    def test_depth_zero_over_budget_flag(self) -> None:
+        # A section that exceeds max_tokens must be flagged as
+        # over_budget on its depth-0 chunk so callers can filter coarse
+        # views down to TOC-sized entries.
+        big_paragraph = ". ".join("S" + str(i) for i in range(50)) + "."
+        chunker = HierarchicalChunker(max_tokens=10)
+        chunks = chunker.chunk(big_paragraph, parent_id="doc-1")
+        depth_zero = [c for c in chunks if c.depth == 0]
+        assert depth_zero, "expected at least one depth-0 section chunk"
+        assert all(c.metadata.get("over_budget") is True for c in depth_zero), (
+            "all depth-0 chunks for an oversize section must be flagged"
+        )
+        assert all(c.metadata.get("max_tokens") == 10 for c in depth_zero)
+
+    def test_depth_zero_within_budget_flag(self) -> None:
+        # A section that fits inside max_tokens must report
+        # over_budget=False on its depth-0 chunk.
+        chunker = HierarchicalChunker(max_tokens=1024)
+        chunks = chunker.chunk("Short section.\n", parent_id="doc-1")
+        depth_zero = [c for c in chunks if c.depth == 0]
+        assert depth_zero, "expected at least one depth-0 chunk"
+        assert all(c.metadata.get("over_budget") is False for c in depth_zero)
 
     def test_round_trip_at_every_depth(self) -> None:
         chunker = HierarchicalChunker(max_tokens=200)

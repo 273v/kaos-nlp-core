@@ -1,29 +1,29 @@
 {
   "label": "Hierarchical@USC",
   "documents": 1000,
-  "chunks": 21713,
+  "chunks": 21697,
   "empty_documents": 0,
   "exceptions": [],
   "bad_offset_examples": [],
-  "elapsed_seconds": 0.582,
-  "rss_before_mb": 1733.4,
-  "rss_after_mb": 1733.4,
+  "elapsed_seconds": 0.661,
+  "rss_before_mb": 1736.1,
+  "rss_after_mb": 1736.1,
   "rss_delta_mb": 0.0,
-  "chunks_per_sec": 37283.9,
-  "docs_per_sec": 1717.1,
+  "chunks_per_sec": 32817.0,
+  "docs_per_sec": 1512.5,
   "chunk_token_count": {
     "min": 2,
     "p50": 30,
-    "p95": 872.0,
-    "p99": 1112.86,
+    "p95": 866.0,
+    "p99": 1112.02,
     "max": 98650,
-    "mean": 146.1
+    "mean": 145.2
   },
   "chunks_per_doc": {
     "min": 2,
     "p50": 12.0,
     "p95": 70.0,
-    "max": 351,
+    "max": 348,
     "mean": 21.7
   }
 }
