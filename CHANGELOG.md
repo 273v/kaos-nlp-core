@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+## [0.1.0a8] - 2026-05-16
+
 ### Fixed — `HierarchicalChunker` depth-0 / depth-2
 
 - **`HierarchicalChunker`** now records `metadata["over_budget"]`
