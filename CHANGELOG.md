@@ -8,6 +8,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — `HierarchicalChunker` depth-0 / depth-2
+
+- **`HierarchicalChunker`** now records `metadata["over_budget"]`
+  on every depth-0 chunk (boolean — `True` when the section's
+  token count exceeds the chunker's `max_tokens`). Callers that
+  want a coarse table-of-contents view can filter for
+  `depth == 0 and not over_budget` without recomputing the budget
+  comparison. The chunk's `metadata["max_tokens"]` is also written
+  so downstream consumers see the budget the section was scored
+  against.
+- **`HierarchicalChunker`** no longer emits depth-2 chunks that
+  duplicate their depth-1 parent. The depth-2 fallback runs the
+  injected `SentenceChunker` on each oversize paragraph sub-chunk;
+  when the resulting split returns exactly one chunk (the common
+  case where `ParagraphChunker` already subdivided via the same
+  `SentenceChunker`), depth-2 is suppressed. Sentence-level
+  subdivision still fires whenever the caller supplies a tighter
+  `sentence_chunker=SentenceChunker(max_tokens=...)`, which is
+  where the additional granularity actually exists.
+- The change is observable in `chunker-scale-*-hierarchical.json`
+  benchmarks as a small drop in total chunk count (USC: 21713 →
+  21697; EDGAR: 39353 → 39245) reflecting the no-op depth-2
+  duplicates that were previously emitted. Public API and offset
+  round-trip invariants are unchanged.
+
+Regression coverage in
+`tests/test_chunking_chunkers.py::TestHierarchicalChunker` —
+`test_depth_zero_over_budget_flag`,
+`test_depth_zero_within_budget_flag`,
+`test_depth_two_suppressed_when_sentence_split_is_noop`, and the
+revised `test_sentence_subdivision_when_paragraph_oversize` (which
+now injects a tighter `SentenceChunker` to exercise the legitimate
+depth-2 path).
+
 
 ## [0.1.0a7] - 2026-05-15
 

@@ -1,29 +1,29 @@
 {
   "label": "Hierarchical@Patents",
   "documents": 200,
-  "chunks": 14238,
+  "chunks": 14213,
   "empty_documents": 0,
   "exceptions": [],
   "bad_offset_examples": [],
-  "elapsed_seconds": 1.144,
-  "rss_before_mb": 1823.5,
-  "rss_after_mb": 1823.7,
-  "rss_delta_mb": 0.2,
-  "chunks_per_sec": 12451.1,
-  "docs_per_sec": 174.9,
+  "elapsed_seconds": 1.657,
+  "rss_before_mb": 1823.2,
+  "rss_after_mb": 1823.2,
+  "rss_delta_mb": 0.0,
+  "chunks_per_sec": 8577.5,
+  "docs_per_sec": 120.7,
   "chunk_token_count": {
     "min": 1,
-    "p50": 144.0,
-    "p95": 1022.0,
-    "p99": 8492.81,
+    "p50": 143,
+    "p95": 1021.0,
+    "p99": 8498.06,
     "max": 68441,
-    "mean": 611.6
+    "mean": 610.5
   },
   "chunks_per_doc": {
     "min": 16,
     "p50": 60.0,
     "p95": 162.8,
-    "max": 334,
-    "mean": 71.2
+    "max": 328,
+    "mean": 71.1
   }
 }

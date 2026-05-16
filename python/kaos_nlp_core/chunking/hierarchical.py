@@ -48,6 +48,19 @@ class HierarchicalChunker:
         ``0``, ``1``, or ``2``. Each chunk's ``metadata`` includes
         ``parent_section_index`` so consumers can rebuild the
         section → paragraph → sentence tree.
+
+        ``depth=0`` chunks carry ``metadata["over_budget"]``
+        indicating whether ``token_count > max_tokens`` for that
+        section. Callers that want a coarse-only view (e.g., a
+        table of contents) can filter for
+        ``depth == 0 and not over_budget``.
+
+        ``depth=2`` chunks are emitted only when sentence
+        subdivision of the paragraph actually adds granularity
+        (i.e., yields more than one chunk). When the underlying
+        text cannot be split further — for example, a single
+        oversize sentence — depth=2 is suppressed to avoid emitting
+        a chunk identical to its depth=1 parent.
     """
 
     def __init__(
@@ -85,14 +98,18 @@ class HierarchicalChunker:
             section_text = text[section.start : section.end]
             if not section_text.strip():
                 continue
-            # Depth-0: the section itself.
+            # Depth-0: the section itself. ``over_budget`` flags sections
+            # whose own token count exceeds ``max_tokens`` — useful for
+            # callers that want to filter depth-0 down to coarse-toc-only
+            # views without having to recompute the budget comparison.
+            section_token_count = self.token_counter(section_text)
             chunks.append(
                 Chunk(
                     text=section_text,
                     start=section.start,
                     end=section.end,
                     parent_id=parent_id,
-                    token_count=self.token_counter(section_text),
+                    token_count=section_token_count,
                     depth=0,
                     metadata={
                         "chunker": "HierarchicalChunker",
@@ -101,6 +118,8 @@ class HierarchicalChunker:
                         "section_depth": section.depth,
                         "section_heading": section.heading,
                         "level": "section",
+                        "max_tokens": self.max_tokens,
+                        "over_budget": section_token_count > self.max_tokens,
                     },
                 )
             )
@@ -127,12 +146,21 @@ class HierarchicalChunker:
                     metadata=paragraph_meta,
                 )
                 chunks.append(paragraph_global)
-                # Depth-2: sentence subdivision for any paragraph
-                # whose token count is still above budget.
+                # Depth-2: sentence subdivision for any paragraph whose
+                # token count is still above budget *and* where the
+                # subdivision actually adds granularity. ParagraphChunker
+                # already routes oversize paragraphs through
+                # SentenceChunker, so a naïve re-run on the resulting
+                # sub-chunk often returns one chunk identical to the
+                # input — emitting that as depth=2 would just duplicate
+                # depth=1. Require ``len(sentence_chunks) > 1`` to skip
+                # the no-op case.
                 if token_count > self.max_tokens:
                     sentence_chunks = self._sentence_chunker.chunk(
                         paragraph_chunk.text, parent_id=parent_id
                     )
+                    if len(sentence_chunks) <= 1:
+                        continue
                     for sentence_chunk in sentence_chunks:
                         chunks.append(
                             Chunk(
