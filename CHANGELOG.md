@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [0.1.0a9] - 2026-05-20
+
+### Changed — kaos-core 0.1.0a12 catch-up (WU-D.1)
+
+- Layer 1 catch-up release per the 0.1.0 GA plan (WU-D.1). No source
+  changes; Rust API is already aligned with the kaos-core 0.1.0a10 URI
+  redesign + 0.1.0a12 capability type contract (this package's Rust
+  core has no kaos-core dependency at the boundary). Dev-group
+  `kaos-core` pin refreshed to 0.1.0a12 via `uv lock` so contributors
+  test against the same floor downstream Layer 5 consumers depend on.
+- Linux x86_64 `maturin develop --release` build is green; CI matrix
+  builds macOS arm64 + Windows wheels on tag push.
+
+### Verified
+- Rust QA: `cargo fmt`, `cargo clippy --all-targets -- -D warnings`,
+  `cargo test --no-default-features` (677 tests passed).
+- Python QA: `ruff format --check`, `ruff check`, `ty check`,
+  `pytest -m "not live and not network and not slow and not integration"`
+  (2054 passed, 68 skipped — fixture-gated, 20 deselected).
+
+
 ## [0.1.0a8] - 2026-05-16
 
 ### Fixed — `HierarchicalChunker` depth-0 / depth-2
