@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [0.1.0rc1] — 2026-05-20
+
+### Changed — WU-J of 0.1.0 GA plan
+
+- Release candidate cut per WU-J of the 0.1.0 GA plan. Freezes the
+  public Python + Rust API surface ahead of GA. No source changes
+  relative to 0.1.0a9; this release exists to raise the kaos-core
+  dev-group pin floor to the rc track and signal API freeze to
+  downstream consumers.
+- Pin floor raised to `kaos-core>=0.1.0rc1,<0.2` across `kaos-*` deps
+  in the dev group. The `<0.2` ceiling protects against legacy
+  `0.2.0a*` lines (e.g. kaos-nlp-transformers) leaking into resolution.
+- Cargo crate version bumped to `0.1.0-rc.1`; maturin emits the
+  PEP 440-normalized wheel metadata `0.1.0rc1`.
+
+### Verified
+- Rust QA: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`,
+  `cargo test --no-default-features` (677 tests passed).
+- Python QA: `ruff format --check`, `ruff check`, `ty check`,
+  `pytest -m "not live and not network and not slow and not integration"`
+  (1696 passed, 67 skipped — fixture-gated).
+
+
 ## [0.1.0a9] - 2026-05-20
 
 ### Changed — kaos-core 0.1.0a12 catch-up (WU-D.1)
