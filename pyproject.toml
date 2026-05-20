@@ -92,7 +92,7 @@ Changelog = "https://github.com/273v/kaos-nlp-core/blob/main/CHANGELOG.md"
 # alongside the [mcp] / [tabular] / [programs] / [transformers] extras
 # once the siblings ship.
 dev = [
-  "kaos-core>=0.1.0rc1,<0.2",
+  "kaos-core>=0.1.0,<0.2",
   "cryptography>=46.0.7",
   "httpx>=0.28.0",
   "maturin>=1.8,<2.0",
