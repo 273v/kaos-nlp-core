@@ -11,7 +11,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-05-17T18:54:58.184387963Z"
+exclude-newer = "2026-05-17T19:55:53.628642213Z"
 exclude-newer-span = "PT72H"
 
 [options.exclude-newer-package]
@@ -307,16 +307,16 @@ wheels = [
 
 [[package]]
 name = "kaos-core"
-version = "0.1.0a12"
+version = "0.1.0rc1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/3d/89/f89f6461af4713c14f3a0844c11236ef564a2d71abd85c72bed66af9a8dd/kaos_core-0.1.0a12.tar.gz", hash = "sha256:4e8abec4514a840402c4993654d3e756da7b2462f01e1742562bbd8b3d191c1a", size = 197525, upload-time = "2026-05-20T14:11:35.426Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/7e/56/97682b2cfeaeb1c9806b39b32b702a2dbe1a2695cd0e2c1012e30a4cfa80/kaos_core-0.1.0rc1.tar.gz", hash = "sha256:a84f52ac55d296fa7979d766ff157cc6164764ca42d93e45df78dbf8d53a42ef", size = 197743, upload-time = "2026-05-20T19:53:32.689Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/95/da/65ff51029b8fd063c4c47c4c74b1607edc29cf3ad6ef16c55a83e1608ced/kaos_core-0.1.0a12-py3-none-any.whl", hash = "sha256:22c4fac4fe9e458ec62cb698cf86af7d9c12a319d62331f37c35e1dc5c6cf6fe", size = 151388, upload-time = "2026-05-20T14:11:33.664Z" },
+    { url = "https://files.pythonhosted.org/packages/02/61/ebb1da64a3e0c540ab16bb5e1b2d54adc9bc5366d0ed806f45cf15d0ed47/kaos_core-0.1.0rc1-py3-none-any.whl", hash = "sha256:0a691b6e4c5688368de2e0112138cfa46b3827887df728f19df55bc2abdf44c1", size = 151389, upload-time = "2026-05-20T19:53:30.723Z" },
 ]
 
 [[package]]
@@ -348,7 +348,7 @@ requires-dist = [{ name = "numpy", specifier = ">=2.1" }]
 dev = [
     { name = "cryptography", specifier = ">=46.0.7" },
     { name = "httpx", specifier = ">=0.28.0" },
-    { name = "kaos-core", specifier = ">=0.1.0a1" },
+    { name = "kaos-core", specifier = ">=0.1.0rc1,<0.2" },
     { name = "maturin", specifier = ">=1.8,<2.0" },
     { name = "pytest", specifier = ">=9.0.3" },
     { name = "pytest-asyncio", specifier = ">=1.3.0" },
