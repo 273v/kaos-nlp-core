@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [0.1.0] — 2026-05-20
+
+### Changed — WU-L of 0.1.0 GA plan
+
+- 0.1.0 GA — WU-L of the 0.1.0 GA plan. First stable release of
+  `kaos-nlp-core`. The public Python + Rust API is frozen for the
+  0.1.x line: no breaking changes will land until 0.2.0. Only kaos-*
+  pin is `kaos-core` in the dev group, raised from `>=0.1.0rc1,<0.2`
+  to `>=0.1.0,<0.2`. Cargo crate version bumped from `0.1.0-rc.1` to
+  `0.1.0`; maturin emits the PEP 440-normalized wheel metadata
+  `0.1.0`. No source changes vs 0.1.0rc1.
+
+
 ## [0.1.0rc1] — 2026-05-20
 
 ### Changed — WU-J of 0.1.0 GA plan
