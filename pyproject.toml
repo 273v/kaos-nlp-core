@@ -92,7 +92,7 @@ Changelog = "https://github.com/273v/kaos-nlp-core/blob/main/CHANGELOG.md"
 # alongside the [mcp] / [tabular] / [programs] / [transformers] extras
 # once the siblings ship.
 dev = [
-  "kaos-core>=0.1.0a1",
+  "kaos-core>=0.1.0,<0.2",
   "cryptography>=46.0.7",
   "httpx>=0.28.0",
   "maturin>=1.8,<2.0",
@@ -226,3 +226,6 @@ exclude-newer = "72 hours"
 "kaos-source" = false
 "kaos-tabular" = false
 "kaos-web" = false
+# Security-patch exemptions — CVE fixes shipped in the last 72h are
+# allowed to flow through pip-audit. Add lines here with rationale.
+"idna" = false  # CVE-2026-45409, fixed in 3.15 (uploaded 2026-05-12)

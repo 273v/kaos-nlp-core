@@ -619,7 +619,7 @@ dependencies = [
 
 [[package]]
 name = "kaos-nlp-core"
-version = "0.1.0-alpha.8"
+version = "0.1.0"
 dependencies = [
  "ahash",
  "aho-corasick",
