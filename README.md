@@ -17,9 +17,11 @@ SIMD-accelerated string operations, multi-pattern matching, finite-state
 transducers, sentence segmentation, BM25 retrieval, fuzzy hashing, and
 typed Python wrappers throughout.
 
-It is dependency-light: the BASE install pulls only `kaos-nlp-core`
-itself plus the bundled Punkt sentence-segmenter model (~12 MB).
-Optional extras layer in the rest of the KAOS ecosystem.
+It is dependency-light: the BASE install pulls `kaos-nlp-core` itself,
+`numpy>=2.1` (used by similarity, chunker/aggregation marshalling, and
+retrieval helpers — see `pyproject.toml:54`), and the bundled Punkt
+sentence-segmenter model (~12 MB). Optional extras layer in the rest
+of the KAOS ecosystem.
 
 ## Use and authorship disclosure
 
