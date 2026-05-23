@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] — 2026-05-23
+
+audit-04 remediation: F-001 `_VERSION` derivation (#27), F-002 5
+documented subpackages re-exported in top-level `__all__` (#28), and
+classifier bump to Production/Stable (#26).
+
 ### Changed
 
 - **audit-04 F-002 public-module re-export.** Top-level
