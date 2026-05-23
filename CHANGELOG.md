@@ -8,13 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
+### Fixed
 
-- `pyproject.toml` classifier bumped from `Development Status :: 3 - Alpha`
-  to `Development Status :: 5 - Production/Stable` to reflect the
-  0.1.0 GA release (WU-L #543) that froze the public API for the
-  0.1.x line. Closes audit-04/kaos-nlp-core.md Family D (classifier drift).
-
+- **`kaos_nlp_core.tools._VERSION` now tracks the installed package
+  version** via `importlib.metadata.version("kaos-nlp-core")`. Previously
+  `python/kaos_nlp_core/tools.py:36` hardcoded
+  `_VERSION = "0.1.0a1"` while `__version__` resolved to `0.1.1`,
+  so every MCP tool's `ToolMetadata.version` reported the stale alpha
+  string forever. `tests/unit/test_tools.py:82` already asserted
+  `meta.version == _VERSION`, hiding the drift behind a self-referential
+  assertion. Closes audit-04/kaos-nlp-core.md F-001. Mirrors the
+  foundation pattern landed in kaos-core 0.1.2 (PR #31).
 
 
 ## [0.1.1] — 2026-05-22

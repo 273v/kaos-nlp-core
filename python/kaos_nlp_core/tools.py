@@ -33,7 +33,31 @@ from pathlib import Path
 from typing import Any
 
 _MODULE = "kaos-nlp-core"
-_VERSION = "0.1.0a1"
+
+
+def _resolve_version() -> str:
+    """Return the installed `kaos-nlp-core` version, or `unknown` if absent.
+
+    Derived via `importlib.metadata.version` so the MCP tool metadata always
+    matches the wheel/sdist version. We can't import `kaos_nlp_core.__version__`
+    here because this module is imported from `kaos_nlp_core/__init__.py`
+    (`register_nlp_tools`), so the package's `__version__` attribute isn't
+    bound yet at this import point.
+
+    A hardcoded literal here drifted in earlier releases —
+    audit-04/kaos-nlp-core.md F-001 caught the test pinning the stale
+    "0.1.0a1" value while the package had moved to 0.1.1.
+    """
+    from importlib.metadata import PackageNotFoundError
+    from importlib.metadata import version as _version
+
+    try:
+        return _version("kaos-nlp-core")
+    except PackageNotFoundError:
+        return "unknown"
+
+
+_VERSION = _resolve_version()
 
 
 def _workspace_root_from_settings(settings: Any) -> Path:
