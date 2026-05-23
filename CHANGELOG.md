@@ -9,6 +9,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [0.1.1] — 2026-05-22
+
+### Fixed — Office Open XML + legacy OLE disambiguation
+
+- `kaos_nlp_core.content_type.detect()` now correctly classifies real
+  DOCX / PPTX / XLSX files that previously misclassified as
+  `group="archive"` because their central-directory layout did not
+  expose OPC markers within the `infer` crate's seek window. The
+  Python facade adds an OPC fallback that opens the zip, locates
+  `[Content_Types].xml`, and matches the documented Override
+  `ContentType` string for the main payload — recovering the correct
+  `office-docx` / `office-xlsx` / `office-pptx` classification.
+- Adds an OLE CLSID fallback for legacy `.doc` / `.xls` / `.ppt`
+  (Microsoft Compound File Binary). When the bytes carry the OLE magic
+  `D0 CF 11 E0` at offset 0 and the Rust core has not already produced
+  a specific legacy-office group, the facade sniffs the CLSID at
+  offset 512 to distinguish the three formats.
+- Both fallbacks are ported from the battle-tested
+  `kelvin/source/headers.py` implementation that shipped in the prior
+  `kelvin-source` generation. They are pure stdlib (`zipfile`) so no
+  changes to the Rust core, the PyO3 boundary, or the maturin wheel
+  matrix are required.
+
+Verified against real fixtures from `kaos-office/tests/fixtures/`:
+prior to 0.1.1, 2 of 5 sampled DOCX files and 1 of 3 sampled PPTX
+files were misclassified as `archive`; with 0.1.1 all 11 sampled
+files (5 docx + 3 pptx + 3 xlsx) classify correctly.
+
+Tracked in `kaos-modules/docs/audits/2026-05-22-content-type-detection-unused.md`
+Fix 0 (revised).
+
+
 ## [0.1.0] — 2026-05-20
 
 ### Changed — WU-L of 0.1.0 GA plan
