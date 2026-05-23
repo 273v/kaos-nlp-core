@@ -8,17 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
+### Changed
 
-- **`kaos_nlp_core.tools._VERSION` now tracks the installed package
-  version** via `importlib.metadata.version("kaos-nlp-core")`. Previously
-  `python/kaos_nlp_core/tools.py:36` hardcoded
-  `_VERSION = "0.1.0a1"` while `__version__` resolved to `0.1.1`,
-  so every MCP tool's `ToolMetadata.version` reported the stale alpha
-  string forever. `tests/unit/test_tools.py:82` already asserted
-  `meta.version == _VERSION`, hiding the drift behind a self-referential
-  assertion. Closes audit-04/kaos-nlp-core.md F-001. Mirrors the
-  foundation pattern landed in kaos-core 0.1.2 (PR #31).
+- **audit-04 F-002 public-module re-export.** Top-level
+  `kaos_nlp_core.__all__` now includes the five documented
+  subpackages that were previously available only via an explicit
+  `import kaos_nlp_core.<name>` — `content_type`, `concepts`,
+  `extract`, `structure`, and `vocabulary`. Pre-fix,
+  `kaos_nlp_core.content_type` raised `AttributeError` after a bare
+  `import kaos_nlp_core`, even though the 0.1.0a7 and 0.1.1
+  CHANGELOG entries shipped `content_type.detect()` as a public
+  feature and the project standards treat documented modules as
+  public API. This restores the implicit contract the README cites.
+
+### Tests
+
+- `tests/unit/test_public_module_reexport.py` — pins attribute
+  access AND `__all__` membership for the five subpackages so a
+  future refactor can't quietly drop the re-export.
 
 
 ## [0.1.1] — 2026-05-22
