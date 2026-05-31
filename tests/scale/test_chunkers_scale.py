@@ -36,7 +36,6 @@ from __future__ import annotations
 import gc
 import json
 import os
-import resource
 import statistics
 import time
 from collections.abc import Callable
@@ -56,6 +55,9 @@ from kaos_nlp_core.chunking import (
 )
 
 from .conftest import record_text
+
+# ``resource`` is a Unix-only stdlib module; these memory-scale tests skip on Windows.
+resource = pytest.importorskip("resource")
 
 # ---------------------------------------------------------------------------
 # Chunker registry
