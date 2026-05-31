@@ -24,6 +24,7 @@ assert all subprocesses returned the same winner.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 
@@ -55,7 +56,10 @@ def _run_under_hashseed(seed: int, fn_source: str) -> str:
         [sys.executable, "-c", code],
         check=True,
         capture_output=True,
-        env={"PYTHONHASHSEED": str(seed), "PATH": "/usr/bin:/usr/local/bin"},
+        # Inherit the full environment (USERPROFILE/HOME/SYSTEMROOT on Windows,
+        # etc.) and only override PYTHONHASHSEED — a hardcoded minimal env
+        # broke the kaos_nlp_core import on Windows (home-dir resolution).
+        env={**os.environ, "PYTHONHASHSEED": str(seed)},
     )
     return proc.stdout.decode("utf-8").strip()
 
