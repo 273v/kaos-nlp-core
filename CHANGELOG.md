@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4] — 2026-06-01
+
+### Fixed
+
+- **Python 3.15 build/install support.** Bumped `pydantic-core`
+  2.41.5 → 2.46.4 (PyO3 0.26 → 0.28) to pick up cp315-compatible wheels
+  (#33). Without it, installing/building on Python 3.15 fell back to a
+  source build of `pydantic-core`. No public API, CLI, JSON, pickle, or
+  serialized-artifact change; `abi3-py313` wheel behavior preserved.
+
 ## [0.1.3] — 2026-05-25
 
 Dependabot batch.
