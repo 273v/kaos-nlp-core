@@ -8,6 +8,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.5] — 2026-06-02
+
+### Added
+
+- **Dense similarity-graph primitives** in `kaos_nlp_core.similarity`,
+  one fused Rust call each so callers stop hand-rolling an
+  `N × top_k_cosine` loop:
+  - `knn_graph(matrix, k, *, include_self=False, assume_normalized=False)`
+    — for every row, its `k` nearest other rows. Returns a `KnnGraph`
+    with a rectangular `(n_rows, effective_k)` `indices`/`scores` table
+    (`KnnGraph.edges()` emits the `(m, 2)` uint32 edge array the graph
+    layer ingests). Per-row cosine sweeps reuse the existing SIMD
+    kernels and the `select_top_k` heap (factored out of `top_k_cosine`
+    so the ascending-index tie-break is shared, not duplicated), fanned
+    out across Rayon threads with the GIL released.
+  - `near_duplicates(matrix, threshold, *, assume_normalized=False, max_pairs=None)`
+    — every upper-triangle pair `(i, j)`, `i < j`, with cosine
+    `>= threshold`, in lexicographic order. Returns a `NearDuplicates`
+    (`pairs` / `scores` / `truncated`). A `max_pairs` cap is never
+    silent: it sets `truncated` and emits a `UserWarning`.
+  - `as_contiguous_f32(array)` — the explicit one-call coercion to the
+    C-contiguous float32 layout the similarity primitives require
+    (`EmbeddingModel.embed()` output already conforms; reach for this
+    after column slices, `np.stack`, or foreign-dtype loads).
+  - New public names: `KnnGraph`, `NearDuplicates`, `NO_NEIGHBOR`.
+    Determinism, NaN handling, and the layer boundary (component
+    labelling lives in `kaos-graph`, not here) are documented in
+    `docs/design-similarity-graph.md`.
+
+  No change to existing public API, CLI, JSON, pickle, or serialized
+  artifacts; `abi3-py313` wheel behavior preserved.
+
 ## [0.1.4] — 2026-06-01
 
 ### Fixed

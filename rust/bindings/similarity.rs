@@ -10,6 +10,8 @@
 //!   ├── cosine_adjacent(matrix) -> np.ndarray
 //!   ├── top_k_cosine(query, matrix, k) -> (np.ndarray, np.ndarray)
 //!   ├── mmr_select(matrix, relevance, k, lambda_) -> (np.ndarray, np.ndarray)
+//!   ├── knn_graph(matrix, k, include_self, normalized) -> (np.ndarray, np.ndarray)
+//!   ├── near_duplicates(matrix, threshold, normalized, max_pairs) -> (np.ndarray, np.ndarray, bool)
 //!   └── l2_normalize_in_place(vector) -> bool
 //! ```
 //!
@@ -24,6 +26,7 @@
 //! (the `detach`/`allow_threads` patterns there). Single-pair cosine
 //! is short enough that GIL release isn't worth the overhead.
 
+use numpy::ndarray::Array2;
 use numpy::{IntoPyArray, PyArray1, PyArrayMethods, PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
@@ -34,7 +37,8 @@ use crate::core::similarity::{
     cosine_adjacent_normalized as core_cosine_adjacent_normalized,
     cosine_normalized as core_cosine_normalized, cosine_one_to_many as core_cosine_one_to_many,
     cosine_one_to_many_normalized as core_cosine_one_to_many_normalized,
-    l2_normalize_in_place as core_l2_normalize, mmr_select as core_mmr_select,
+    knn_graph as core_knn_graph, l2_normalize_in_place as core_l2_normalize,
+    mmr_select as core_mmr_select, near_duplicates as core_near_duplicates,
     top_k_cosine as core_top_k_cosine, SimilarityError,
 };
 
@@ -311,6 +315,97 @@ fn l2_normalize_in_place(vector: &Bound<'_, PyArray1<f32>>) -> PyResult<bool> {
 }
 
 // ----------------------------------------------------------------------------
+// knn_graph(matrix, k, include_self, normalized)
+// ----------------------------------------------------------------------------
+
+/// k-nearest-neighbour graph: for every row of ``matrix``, the indices and
+/// cosine scores of its ``k`` most-similar rows.
+///
+/// Args:
+///     matrix: 2-D C-contiguous float32 array of shape ``(n_rows, dim)``.
+///     k: neighbours per row. Capped at the number available
+///         (``n_rows - 1`` when ``include_self`` is false).
+///     include_self: when false (default), a row is never its own
+///         neighbour.
+///     normalized: when true, take the unit-norm fast path (caller
+///         guarantees every row is L2-unit-norm).
+///
+/// Returns:
+///     Tuple of ``(indices, scores)``, both 2-D arrays of shape
+///     ``(n_rows, effective_k)``:
+///       - ``indices``: ``uint32``; padded slots carry ``u32::MAX``.
+///       - ``scores``: ``float32``; padded slots carry ``NaN``.
+#[pyfunction]
+#[pyo3(signature = (matrix, k, include_self=false, normalized=false))]
+fn knn_graph<'py>(
+    py: Python<'py>,
+    matrix: PyReadonlyArray2<'_, f32>,
+    k: usize,
+    include_self: bool,
+    normalized: bool,
+) -> PyResult<Bound<'py, PyTuple>> {
+    let dim = matrix.as_array().shape()[1];
+    let matrix_slice = matrix.as_slice()?;
+    let graph = py
+        .detach(|| core_knn_graph(matrix_slice, dim, k, include_self, normalized))
+        .map_err(map_err)?;
+    let shape = (graph.n_rows, graph.k);
+    let indices = Array2::from_shape_vec(shape, graph.indices)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?
+        .into_pyarray(py);
+    let scores = Array2::from_shape_vec(shape, graph.scores)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?
+        .into_pyarray(py);
+    PyTuple::new(py, [indices.into_any(), scores.into_any()])
+}
+
+// ----------------------------------------------------------------------------
+// near_duplicates(matrix, threshold, normalized, max_pairs)
+// ----------------------------------------------------------------------------
+
+/// All upper-triangle row pairs ``(i, j)``, ``i < j``, with cosine
+/// similarity ``>= threshold``.
+///
+/// Args:
+///     matrix: 2-D C-contiguous float32 array of shape ``(n_rows, dim)``.
+///     threshold: minimum cosine for a pair to be reported.
+///     normalized: unit-norm fast path (same contract as ``knn_graph``).
+///     max_pairs: optional cap on the number of returned pairs.
+///
+/// Returns:
+///     Tuple ``(pairs, scores, truncated)``:
+///       - ``pairs``: ``uint32`` 2-D array of shape ``(m, 2)`` in
+///         ``(i, j)`` lexicographic order.
+///       - ``scores``: ``float32`` 1-D array of length ``m``.
+///       - ``truncated``: ``bool``, true when ``max_pairs`` clamped the
+///         output.
+#[pyfunction]
+#[pyo3(signature = (matrix, threshold, normalized=false, max_pairs=None))]
+fn near_duplicates<'py>(
+    py: Python<'py>,
+    matrix: PyReadonlyArray2<'_, f32>,
+    threshold: f32,
+    normalized: bool,
+    max_pairs: Option<usize>,
+) -> PyResult<Bound<'py, PyTuple>> {
+    let dim = matrix.as_array().shape()[1];
+    let matrix_slice = matrix.as_slice()?;
+    let nd = py
+        .detach(|| core_near_duplicates(matrix_slice, dim, threshold, normalized, max_pairs))
+        .map_err(map_err)?;
+    let m = nd.scores.len();
+    let pairs = Array2::from_shape_vec((m, 2), nd.pairs)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?
+        .into_pyarray(py);
+    let scores = nd.scores.into_pyarray(py);
+    let truncated = nd.truncated.into_pyobject(py)?.to_owned();
+    PyTuple::new(
+        py,
+        [pairs.into_any(), scores.into_any(), truncated.into_any()],
+    )
+}
+
+// ----------------------------------------------------------------------------
 // Module registration
 // ----------------------------------------------------------------------------
 
@@ -326,6 +421,8 @@ pub(crate) fn register_module(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(top_k_cosine, &m)?)?;
     m.add_function(wrap_pyfunction!(mmr_select, &m)?)?;
     m.add_function(wrap_pyfunction!(l2_normalize_in_place, &m)?)?;
+    m.add_function(wrap_pyfunction!(knn_graph, &m)?)?;
+    m.add_function(wrap_pyfunction!(near_duplicates, &m)?)?;
 
     parent.add_submodule(&m)?;
     // Required so `from kaos_nlp_core._rust.similarity import ...` resolves.

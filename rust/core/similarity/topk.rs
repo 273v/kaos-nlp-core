@@ -106,6 +106,26 @@ pub fn top_k_cosine(
         });
     }
     let sims = cosine_one_to_many(query, matrix, dim)?;
+    Ok(select_top_k(&sims, k))
+}
+
+/// Select the top-`k` entries of a pre-computed similarity vector by
+/// score descending, with ascending-index tie-break. NaN scores are
+/// dropped (they cannot be ranked), so the result may contain fewer
+/// than `k` entries when `sims` holds NaNs or is shorter than `k`.
+///
+/// This is the selection half of [`top_k_cosine`], factored out so the
+/// similarity-graph builders (`crate::core::similarity::graph`) can run
+/// the same deterministic `O(n log k)` heap selection over a row of
+/// cosines they have already computed — without recomputing the cosine
+/// sweep or duplicating the tie-break invariant.
+pub fn select_top_k(sims: &[f32], k: usize) -> TopKResult {
+    if k == 0 {
+        return TopKResult {
+            indices: Vec::new(),
+            scores: Vec::new(),
+        };
+    }
     let effective_k = k.min(sims.len());
 
     // Min-heap (inverted Ord above): smallest survivor at the root.
@@ -159,7 +179,7 @@ pub fn top_k_cosine(
         indices.push(s.index);
         scores.push(s.score);
     }
-    Ok(TopKResult { indices, scores })
+    TopKResult { indices, scores }
 }
 
 #[cfg(test)]
