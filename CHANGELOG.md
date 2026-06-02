@@ -8,6 +8,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.6] — 2026-06-02
+
+### Added
+
+- **Class-based TF-IDF (c-TF-IDF)** in `kaos_nlp_core.ctfidf` — the
+  BERTopic cluster-labelling kernel, in Rust. `class_tfidf(texts,
+  class_ids, *, top_k=10, ngram_range=(1,2), stopwords=None, min_df=1,
+  reduce_frequent_words=False, bm25_weighting=False, lowercase=True,
+  token_prefix=0)` returns the top distinctive `(term, weight)` terms per
+  class: each cluster is treated as one document and TF-IDF is computed
+  over the set of clusters, so terms score high when frequent *within* a
+  class and distinctive *across* classes (`tf = L1-normalised class
+  counts`, `idf = ln(1 + A/f_t)`; optional `sqrt`-TF and BM25 IDF).
+  - Compute is all in the Rust core (`crate::core::ctfidf`): tokenisation
+    reuses the crate's word tokenizer (consistent with the MinHash /
+    retrieval paths), with per-document tokenisation and per-class scoring
+    fanned out across Rayon threads and the GIL released. Deterministic
+    (descending weight, alphabetical tie-break).
+  - `token_prefix` exposes the tokenizer's `with_prefix` truncation as a
+    dependency-free, language-agnostic conflation of
+    morphological/derivational variants (`4` merges
+    `automobile`/`automotive`/`autos` → `auto`) — an alternative to a
+    stemmer for grouping.
+
+  No change to existing public API, CLI, JSON, pickle, or serialized
+  artifacts; `abi3-py313` wheel behavior preserved.
+
 ## [0.1.5] — 2026-06-02
 
 ### Added

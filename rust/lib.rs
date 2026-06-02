@@ -53,6 +53,7 @@ fn kaos_nlp_core_rust(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     bindings::aggregation::register_module(m)?;
     bindings::algorithms::register_module(m)?;
     bindings::characters::register_module(m)?;
+    bindings::ctfidf::register_module(m)?;
     bindings::chunking::register_module(m)?;
     bindings::content_type::register_module(m)?;
     bindings::diff::register_module(m)?;
