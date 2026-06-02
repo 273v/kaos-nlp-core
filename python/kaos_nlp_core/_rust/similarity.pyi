@@ -96,6 +96,35 @@ def mmr_select(
     the MMR scores at pick time.
     """
 
+def knn_graph(
+    matrix: np.ndarray,
+    k: int,
+    include_self: bool = False,
+    normalized: bool = False,
+) -> tuple[np.ndarray, np.ndarray]:
+    """k-nearest-neighbour graph over the rows of ``matrix``.
+
+    Returns ``(indices, scores)``, both 2-D arrays of shape
+    ``(n_rows, effective_k)``: ``indices`` is ``uint32`` (``u32::MAX``
+    in unfilled slots), ``scores`` is ``float32`` (``NaN`` in unfilled
+    slots). ``effective_k`` is ``k`` capped at the available neighbour
+    count.
+    """
+
+def near_duplicates(
+    matrix: np.ndarray,
+    threshold: float,
+    normalized: bool = False,
+    max_pairs: int | None = None,
+) -> tuple[np.ndarray, np.ndarray, bool]:
+    """Row pairs ``(i, j)``, ``i < j``, with cosine ``>= threshold``.
+
+    Returns ``(pairs, scores, truncated)``: ``pairs`` is a ``uint32``
+    ``(m, 2)`` array in lexicographic order, ``scores`` is a
+    ``float32`` length-``m`` array, ``truncated`` is ``True`` when a
+    ``max_pairs`` cap clamped the output.
+    """
+
 def l2_normalize_in_place(
     vector: np.ndarray,
 ) -> bool:

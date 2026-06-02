@@ -108,6 +108,7 @@
 #![allow(missing_docs)]
 
 pub mod dense;
+pub mod graph;
 pub mod kernels;
 pub mod mmr;
 pub mod topk;
@@ -116,5 +117,6 @@ pub use dense::{
     cosine, cosine_adjacent, cosine_adjacent_normalized, cosine_normalized, cosine_one_to_many,
     cosine_one_to_many_normalized, l2_normalize_in_place, SimilarityError,
 };
+pub use graph::{knn_graph, near_duplicates, KnnGraph, NearDuplicates};
 pub use mmr::mmr_select;
-pub use topk::top_k_cosine;
+pub use topk::{select_top_k, top_k_cosine};
