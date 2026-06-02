@@ -32,6 +32,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `automobile`/`automotive`/`autos` → `auto`) — an alternative to a
     stemmer for grouping.
 
+- **Curated English stopword resource** in `kaos_nlp_core.stopwords`:
+  `stopwords(language="en")` returns a derived `frozenset[str]` (~214
+  function words) and `stopwords_provenance()` returns its full
+  derivation record. The list is built (`scripts/build_stopwords.py`,
+  maintainer-run, reproducible) by a **hybrid** method — never hand-typed:
+  cross-domain document-frequency contrast over KL3M sources (tokenized
+  with the Rust tokenizer; a term qualifies only when near-universal
+  across multiple domains, so domain content words like `section`/`act`
+  are excluded) ∪ OpenGloss closed-class POS (single-word, all-senses-
+  closed, de-langed) ∪ a documented manual-review completion of the
+  standard English closed class the automatic halves structurally miss.
+  Pairs with `ctfidf` / cluster labelling: pass `stopwords=stopwords()`.
+
   No change to existing public API, CLI, JSON, pickle, or serialized
   artifacts; `abi3-py313` wheel behavior preserved.
 
