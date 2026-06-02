@@ -11,6 +11,7 @@ pub mod algorithms;
 pub mod characters;
 pub mod chunking;
 pub mod content_type;
+pub mod ctfidf;
 pub mod ctph;
 pub mod diff;
 pub mod lexicon;
