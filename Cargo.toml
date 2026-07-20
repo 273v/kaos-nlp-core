@@ -78,7 +78,7 @@ strsim = "0.11"
 # DOCX, XLSX, PPTX, JPEG, PNG, ZIP, EML, ...) by magic bytes, which
 # is sufficient for the coarse 10-bucket categorization the planner
 # needs. The Magika upgrade can land later if accuracy demands it.
-infer = { version = "0.19", default-features = false, features = ["std"] }
+infer = { version = "0.22", default-features = false, features = ["std"] }
 
 # SIMD-accelerated string ops. 4.6.1 is a pure C-side patch over 4.6.0 that
 # fixes OOB reads in `sz_find_skylake` / `sz_rfind_skylake` for null-byte
