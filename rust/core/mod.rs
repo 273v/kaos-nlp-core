@@ -18,6 +18,7 @@ pub mod lexicon;
 pub mod matching;
 pub mod minhash;
 pub mod quality;
+pub mod readability;
 pub mod searcher;
 pub mod segmentation;
 pub mod similarity;

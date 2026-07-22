@@ -15,6 +15,7 @@ pub(crate) mod hashing;
 pub(crate) mod lexicon;
 pub(crate) mod matching;
 pub(crate) mod quality;
+pub(crate) mod readability;
 pub(crate) mod searcher;
 pub(crate) mod segmentation;
 pub(crate) mod similarity;

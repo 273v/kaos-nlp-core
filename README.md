@@ -53,8 +53,9 @@ pip install kaos-nlp-core
 are `cp313-abi3` — one wheel per OS/architecture covers every CPython
 3.13+ minor (3.13, 3.14, 3.15, …). No re-release needed when 3.15 ships.
 
-Platform coverage: Linux x86_64 (manylinux + musllinux), Linux aarch64
-(manylinux + musllinux), macOS arm64, Windows x86_64, Windows arm64.
+Platform coverage: Linux x86_64 (manylinux), Linux aarch64 (manylinux),
+macOS arm64, Windows x86_64, Windows arm64. musllinux wheels were last
+published in 0.1.0a2 — Alpine users should pin `<=0.1.0a2` for now.
 
 ## Quick start
 
@@ -88,6 +89,14 @@ for s in tokenizer.tokenize("東京 emoji 😀 test"):
 result = algorithms.levenshtein("kitten", "sitting")
 print(f"distance={result.distance} similarity={result.similarity:.4f}")
 # distance=3.0 similarity=0.5714
+
+# Readability: one-shot helpers for the common scores, or a full report
+from kaos_nlp_core.readability import flesch_kincaid_grade, readability_report
+print(round(flesch_kincaid_grade("The cat sat on the mat. The dog ate a bone."), 2))
+# -1.65
+report = readability_report("The cat sat on the mat. The dog ate a bone.")
+print(report.counts.words, round(report.scores.flesch_reading_ease, 1))
+# 11 116.7
 ```
 
 The `_words` shortcut exists wherever skipping offsets is meaningful work
@@ -112,6 +121,7 @@ The package is organized around a small set of typed primitives.
 | **Lexicon** | `kaos_nlp_core.lexicon` — query expansion, semantic graph traversal, gazetteer lookups. |
 | **Documents** | `kaos_nlp_core.documents` — `Document`, `DocumentCollection` with JSONL / HuggingFace loaders. |
 | **Quality** | `kaos_nlp_core.quality` — text-quality heuristics (token ratios, Unicode block distribution). |
+| **Readability** | `kaos_nlp_core.readability` — Flesch, Flesch-Kincaid, ARI, Coleman-Liau, SMOG, Gunning Fog, Dale-Chall, LIX/RIX with verified formula provenance; Rust-backed counting, CMUdict-exact syllables with tuned heuristic fallback. |
 
 ## CLI
 
@@ -132,6 +142,7 @@ kaos-nlp duplicates ./corpus/ --threshold 0.5         # near-duplicate detection
 kaos-nlp encode "Robert" --algorithm soundex          # phonetic encoding
 kaos-nlp vocab build doc.txt --type frequency         # build vocabulary
 kaos-nlp analyze doc.txt --json                       # text statistics report
+kaos-nlp readability doc.txt --json                   # Flesch/FK/SMOG/Fog scores
 
 kaos-nlp-serve            # MCP server, stdio transport
 kaos-nlp-serve --http     # MCP server, streamable HTTP (operator-token gated)
@@ -153,7 +164,7 @@ install hint if `kaos-core` or `kaos-mcp` are missing.
 | Aspect | |
 |---|---|
 | **Python** | 3.13, 3.14 (informational matrix entries for 3.14t free-threaded and 3.15-dev). One `cp313-abi3` wheel per OS/arch covers all 3.13+ minors. |
-| **OS** | Linux (manylinux + musllinux, x86_64 + aarch64), macOS arm64, Windows x86_64, Windows arm64. macOS x86_64 deliberately skipped (Apple ended Intel sales in 2023). |
+| **OS** | Linux (manylinux, x86_64 + aarch64), macOS arm64, Windows x86_64, Windows arm64. macOS x86_64 deliberately skipped (Apple ended Intel sales in 2023); musllinux last shipped in 0.1.0a2. |
 | **Maturity** | Alpha. The public API is documented in `kaos_nlp_core.__all__`. |
 | **Stability policy** | Pre-1.0: minor bumps may change behaviour. Every change is documented in [`CHANGELOG.md`](CHANGELOG.md). |
 | **Test coverage** | 298 Rust unit tests + Python pytest suite. Round-trip offset tests cover ASCII, multi-byte Latin, CJK, and emoji. |
