@@ -99,6 +99,34 @@ print(report.counts.words, round(report.scores.flesch_reading_ease, 1))
 # 11 116.7
 ```
 
+No install needed to try it — `uv run` pulls the wheel on the fly:
+
+```bash
+uv run --with kaos-nlp-core python -c "
+from kaos_nlp_core.readability import flesch_kincaid_grade, readability_report
+
+text = 'Hello, world. Readability scoring is now built into kaos-nlp-core.'
+print('Flesch-Kincaid grade:', round(flesch_kincaid_grade(text), 2))
+
+for name, value in readability_report(text).scores.to_dict().items():
+    print(f'{name:28s} {value if isinstance(value, bool) else round(value, 2)}')
+"
+# Flesch-Kincaid grade: 9.77
+# flesch_reading_ease          33.07
+# flesch_kincaid_grade         9.77
+# automated_readability_index  8.56
+# coleman_liau_index           12.25
+# smog_index                   8.84
+# gunning_fog                  6.24
+# lix                          37.83
+# rix                          1.5
+# smog_valid                   False
+```
+
+(`smog_valid: False` is the honesty flag: SMOG's calibration assumes
+≥30 sentences. Dale-Chall is omitted entirely until you supply a
+familiar-word list.)
+
 The `_words` shortcut exists wherever skipping offsets is meaningful work
 (tokenization). Everywhere else — segmentation (`segment_sentences`,
 `segment_paragraphs`, `segment_lines`), pattern matching, similarity
@@ -151,6 +179,12 @@ kaos-nlp-serve --http     # MCP server, streamable HTTP (operator-token gated)
 Every command supports `--json` for machine-readable output. CLI search
 reads both the native persisted index format (KNC) and legacy `.json`
 bundles.
+
+The CLI also runs without installing, via `uvx`:
+
+```bash
+uvx --from kaos-nlp-core kaos-nlp readability doc.txt --json
+```
 
 Note: 17 MCP tools are registered by `register_nlp_tools()`. Until
 `0.1.0a2`, the `[mcp]` extra is reserved but unpopulated — manually run
