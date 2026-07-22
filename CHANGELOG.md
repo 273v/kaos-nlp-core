@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.8] — 2026-07-22
+
+### Documentation
+
+- Zero-install examples for readability scoring: `uv run --with
+  kaos-nlp-core` hello-world (with real output) in the README quick
+  start, a `uvx --from kaos-nlp-core kaos-nlp readability` variant in
+  the CLI section, and a shell one-liner in the
+  `kaos_nlp_core.readability` module docstring. Ships the updated
+  README to the PyPI project page and the updated docstring in the
+  wheel. No code, API, CLI, or packaging behavior change.
+
 ## [0.1.7] — 2026-07-22
 
 ### Added
@@ -848,7 +860,8 @@ This release is the first to ship under the Apache License 2.0. Earlier
 internal versions were proprietary. The bundled Punkt model (`models/
 default.npkt.gz`) is Apache-2.0 from the NLTK distribution.
 
-[Unreleased]: https://github.com/273v/kaos-nlp-core/compare/v0.1.7...HEAD
+[Unreleased]: https://github.com/273v/kaos-nlp-core/compare/v0.1.8...HEAD
+[0.1.8]: https://github.com/273v/kaos-nlp-core/compare/v0.1.7...v0.1.8
 [0.1.7]: https://github.com/273v/kaos-nlp-core/compare/v0.1.6...v0.1.7
 [0.1.0a3]: https://github.com/273v/kaos-nlp-core/compare/v0.1.0a2...v0.1.0a3
 [0.1.0a2]: https://github.com/273v/kaos-nlp-core/releases/tag/v0.1.0a2
