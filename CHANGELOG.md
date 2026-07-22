@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.9] — 2026-07-22
+
+### Security
+
+- Resolve all outstanding RUSTSEC advisories; `cargo audit` and
+  `cargo deny check` are clean again:
+  - `pyo3` 0.28.3 → 0.29.0 (RUSTSEC-2026-0176 out-of-bounds read in
+    `PyList`/`PyTuple` iterator `nth`/`nth_back`; RUSTSEC-2026-0177
+    missing `Sync` bound on `PyCFunction::new_closure`), with `numpy`
+    0.28 → 0.29 in lockstep per its PyO3 compat matrix. No source
+    changes were needed; `abi3-py313` wheel behavior, GIL-release
+    points, and the free-threaded `gil_used = false` declaration are
+    preserved.
+  - `crossbeam-epoch` 0.9.18 → 0.9.20 (RUSTSEC-2026-0204, transitive).
+  - `anyhow` 1.0.102 → 1.0.104 (RUSTSEC-2026-0190, transitive).
+
+  No public API, CLI, JSON, pickle, or serialized-artifact change.
+
 ## [0.1.8] — 2026-07-22
 
 ### Documentation
@@ -860,7 +878,8 @@ This release is the first to ship under the Apache License 2.0. Earlier
 internal versions were proprietary. The bundled Punkt model (`models/
 default.npkt.gz`) is Apache-2.0 from the NLTK distribution.
 
-[Unreleased]: https://github.com/273v/kaos-nlp-core/compare/v0.1.8...HEAD
+[Unreleased]: https://github.com/273v/kaos-nlp-core/compare/v0.1.9...HEAD
+[0.1.9]: https://github.com/273v/kaos-nlp-core/compare/v0.1.8...v0.1.9
 [0.1.8]: https://github.com/273v/kaos-nlp-core/compare/v0.1.7...v0.1.8
 [0.1.7]: https://github.com/273v/kaos-nlp-core/compare/v0.1.6...v0.1.7
 [0.1.0a3]: https://github.com/273v/kaos-nlp-core/compare/v0.1.0a2...v0.1.0a3

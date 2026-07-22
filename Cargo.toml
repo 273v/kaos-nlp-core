@@ -1,6 +1,6 @@
 [package]
 name = "kaos-nlp-core"
-version = "0.1.8"
+version = "0.1.9"
 edition = "2021"
 license = "Apache-2.0"
 authors = ["273 Ventures LLC <it@273ventures.com>"]
@@ -31,7 +31,7 @@ python = ["pyo3", "numpy"]
 # abi3-py313: ship one wheel per OS/arch that works on every CPython 3.13+
 # minor (3.13, 3.14, 3.15, ...). Without this flag, every new Python minor
 # requires a re-release.
-pyo3 = { version = "0.28", features = ["extension-module", "abi3-py313"], optional = true }
+pyo3 = { version = "0.29", features = ["extension-module", "abi3-py313"], optional = true }
 # NumPy interop — zero-copy reads of PyArray1<f32> / PyArray2<f32> +
 # owned-Vec<f32> → PyArray1<f32> output handoff for the
 # `core::similarity` module's PyO3 bindings. Pinned to the same minor
@@ -43,7 +43,7 @@ pyo3 = { version = "0.28", features = ["extension-module", "abi3-py313"], option
 # (`cargo test --no-default-features`) can exercise `rust/core/`
 # without dragging in PyO3 / numpy; it is not a user-facing on/off
 # knob.
-numpy = { version = "0.28", optional = true }
+numpy = { version = "0.29", optional = true }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 # postcard: bincode (all versions) is unmaintained (RUSTSEC-2025-0141 — the
