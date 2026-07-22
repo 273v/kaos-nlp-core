@@ -17,6 +17,12 @@ Quick start — most users want one of these::
 
     grade = flesch_kincaid_grade("The quick brown fox jumps over the lazy dog.")
 
+Or from a shell with no install (``uv`` fetches the wheel on the fly)::
+
+    uv run --with kaos-nlp-core python -c \
+        "from kaos_nlp_core.readability import flesch_kincaid_grade; \
+         print(flesch_kincaid_grade('Hello, world.'))"
+
 Full report::
 
     from kaos_nlp_core.readability import readability_report
