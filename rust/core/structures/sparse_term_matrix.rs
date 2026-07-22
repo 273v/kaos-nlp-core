@@ -303,7 +303,7 @@ impl SparseTermMatrix {
                 dot += val_a * val_b;
             }
         }
-        for (_, &val_b) in map_b.iter() {
+        for &val_b in map_b.values() {
             norm_b += val_b * val_b;
         }
 
