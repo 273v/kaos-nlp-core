@@ -169,6 +169,25 @@ def main(argv: list[str] | None = None) -> None:
     p_analyze.add_argument("file", type=Path, help="Text file path")
     p_analyze.add_argument("--json", action="store_true", help="Structured JSON output")
 
+    # --- readability ---
+    p_readability = sub.add_parser(
+        "readability", help="Readability scores (Flesch, Flesch-Kincaid, SMOG, Fog, ...)"
+    )
+    p_readability.add_argument("file", type=Path, help="Text file path")
+    p_readability.add_argument("--json", action="store_true", help="Structured JSON output")
+    p_readability.add_argument(
+        "--familiar-words",
+        type=Path,
+        default=None,
+        help="FST familiar-word list enabling Dale-Chall "
+        "(build with scripts/build_familiar_wordset.py)",
+    )
+    p_readability.add_argument(
+        "--naive-fog",
+        action="store_true",
+        help="Disable Gunning Fog complex-word exclusions (textstat-compatible counting)",
+    )
+
     args = parser.parse_args(argv)
 
     handlers: dict[str, Any] = {
@@ -183,6 +202,7 @@ def main(argv: list[str] | None = None) -> None:
         "encode": _cmd_encode,
         "vocab": _cmd_vocab,
         "analyze": _cmd_analyze,
+        "readability": _cmd_readability,
     }
 
     try:
@@ -856,3 +876,58 @@ def _cmd_analyze(args: argparse.Namespace) -> None:
     print("\nTop 10 terms:")
     for term, count in top_terms:
         print(f"  {term:<30s} {count:>8d}")
+
+
+def _cmd_readability(args: argparse.Namespace) -> None:
+    """Readability scores for a text file."""
+    from kaos_nlp_core.matching import FstSet
+    from kaos_nlp_core.readability import readability_report
+
+    path = _validate_file(args.file)
+    text = _read_text(path)
+
+    familiar = None
+    if args.familiar_words is not None:
+        familiar = FstSet.load(str(_validate_file(args.familiar_words)))
+
+    fog_flags = not args.naive_fog
+    report = readability_report(
+        text,
+        familiar_words=familiar,
+        fog_exclude_suffixes=fog_flags,
+        fog_exclude_proper_nouns=fog_flags,
+        fog_exclude_compounds=fog_flags,
+    )
+
+    if args.json:
+        payload = report.to_dict()
+        scores = payload["scores"]
+        for key, value in scores.items():
+            if isinstance(value, float):
+                scores[key] = round(value, 4)
+        _json_out({"command": "readability", "file": path.name, **payload})
+        return
+
+    counts = report.counts
+    scores = report.scores
+    print(f"File:                {path.name}")
+    print(f"Sentences:           {counts.sentences:,}")
+    print(f"Words:               {counts.words:,}")
+    print(f"Syllables:           {counts.syllables:,}")
+    print(f"Complex words (Fog): {counts.fog_complex_words:,}")
+    print()
+
+    def fmt(value: float | None) -> str:
+        return f"{value:.2f}" if value is not None else "n/a"
+
+    print(f"Flesch Reading Ease: {fmt(scores.flesch_reading_ease)}")
+    print(f"Flesch-Kincaid:      {fmt(scores.flesch_kincaid_grade)}")
+    print(f"ARI:                 {fmt(scores.automated_readability_index)}")
+    print(f"Coleman-Liau:        {fmt(scores.coleman_liau_index)}")
+    smog_note = "" if scores.smog_valid else "  (needs >=30 sentences)"
+    print(f"SMOG:                {fmt(scores.smog_index)}{smog_note}")
+    print(f"Gunning Fog:         {fmt(scores.gunning_fog)}")
+    print(f"LIX:                 {fmt(scores.lix)}")
+    print(f"RIX:                 {fmt(scores.rix)}")
+    if scores.dale_chall is not None:
+        print(f"Dale-Chall:          {fmt(scores.dale_chall)}")

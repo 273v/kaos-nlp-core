@@ -24,6 +24,14 @@ a clean-room reimplementation in Rust using std::arch intrinsics.
 See docs/design-similarity-simd.md for the per-function
 provenance map.
 
+This product bundles a syllable-count map derived from the CMU
+Pronouncing Dictionary (python/kaos_nlp_core/data/cmudict_syllables.fst,
+built by scripts/build_syllable_map.py from
+https://github.com/cmusphinx/cmudict). CMUdict is Copyright (C)
+1993-2015 Carnegie Mellon University and distributed under the
+2-clause BSD license; the derived map stores only per-word syllable
+counts computed from first pronunciations.
+
 This product depends on third-party Rust crates and Python packages
 listed in Cargo.toml and pyproject.toml. License attribution is
 maintained at the SPDX expression level via cargo-deny and pip-licenses

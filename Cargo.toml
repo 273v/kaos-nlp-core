@@ -1,6 +1,6 @@
 [package]
 name = "kaos-nlp-core"
-version = "0.1.6"
+version = "0.1.7"
 edition = "2021"
 license = "Apache-2.0"
 authors = ["273 Ventures LLC <it@273ventures.com>"]
@@ -179,6 +179,10 @@ harness = false
 
 [[bench]]
 name = "bench_span_index"
+harness = false
+
+[[bench]]
+name = "bench_readability"
 harness = false
 
 [[bench]]

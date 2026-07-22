@@ -174,6 +174,30 @@ impl FstMap {
         self.map.get(key.as_bytes())
     }
 
+    /// Return the raw FST byte buffer (self-describing format, same
+    /// framing convention as [`FstSet::as_bytes`]).
+    pub fn as_bytes(&self) -> &[u8] {
+        self.map.as_fst().as_bytes()
+    }
+
+    /// Load an FstMap from a raw FST byte buffer.
+    pub fn from_bytes(bytes: Vec<u8>) -> Result<Self, String> {
+        let map = fst::Map::new(bytes).map_err(|e| format!("FST map load error: {e}"))?;
+        let len = map.len();
+        Ok(Self { map, len })
+    }
+
+    /// Write the raw FST bytes to disk.
+    pub fn save_to_path(&self, path: &str) -> Result<(), String> {
+        std::fs::write(path, self.as_bytes()).map_err(|e| format!("write {path}: {e}"))
+    }
+
+    /// Load an FstMap from a file written by `save_to_path`.
+    pub fn load_from_path(path: &str) -> Result<Self, String> {
+        let bytes = std::fs::read(path).map_err(|e| format!("read {path}: {e}"))?;
+        Self::from_bytes(bytes)
+    }
+
     /// Check if a key exists.
     pub fn contains_key(&self, key: &str) -> bool {
         self.map.contains_key(key.as_bytes())

@@ -8,6 +8,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.7] — 2026-07-22
+
+### Added
+
+- **Readability scoring** in `kaos_nlp_core.readability` — Flesch
+  Reading Ease, Flesch-Kincaid Grade, ARI, Coleman-Liau, SMOG, Gunning
+  Fog, Dale-Chall, LIX, and RIX with verified formula provenance
+  (constants checked against the original publications and documented
+  in the module docstring).
+  - Counting runs in the Rust core (`crate::core::readability`) in one
+    GIL-released pass through the shared tokenizer (~30 MB/s): words,
+    letters, letters+digits, syllables, polysyllables, Fog complex
+    words, long words, and Dale-Chall unfamiliar words.
+  - **Syllables**: exact lookup against a bundled CMUdict-derived
+    word → count FST (~660 kB, 2-clause BSD, NOTICE entry;
+    `scripts/build_syllable_map.py`) with a tuned vowel-group heuristic
+    fallback (92% exact match against all ~125k CMUdict entries; a
+    committed 500-word sample pins the accuracy in CI). Exposed as
+    `syllable_count(word)`.
+  - **Gunning Fog** implements Gunning's mechanizable complex-word
+    exclusions (suffix -es/-ed/-ing third syllables, proper nouns,
+    hyphenated compounds), each individually flag-configurable;
+    disable all three for textstat-compatible naive counting.
+  - **SMOG** reports `smog_valid=False` below the 30-sentence
+    calibration floor instead of erroring or silently returning.
+  - **Dale-Chall** is lexicon-gated: the 1995 familiar-word list is
+    copyrighted and not bundled; build an FST from your own list with
+    `scripts/build_familiar_wordset.py` and pass `familiar_words=`.
+    Scores use the 1948 regression (what major libraries implement).
+  - Public API: `readability_report(text)` (counts + scores dataclasses
+    with `to_dict()`), `compute_counts`, `score_counts`, and one-shot
+    helpers `flesch_kincaid_grade`, `flesch_reading_ease`,
+    `gunning_fog`. Sentence counts reuse the bundled Punkt model.
+  - CLI: `kaos-nlp readability FILE [--json] [--familiar-words FST]
+    [--naive-fog]`.
+  - Formula constants live in Python as module-level tables, tunable
+    without rebuilding the wheel; empty/degenerate inputs yield `None`
+    scores; outputs are deterministic and panic-free on any input
+    (CJK, emoji, mixed-script covered by tests and proptests).
+
 ## [0.1.6] — 2026-06-02
 
 ### Added
@@ -808,7 +848,8 @@ This release is the first to ship under the Apache License 2.0. Earlier
 internal versions were proprietary. The bundled Punkt model (`models/
 default.npkt.gz`) is Apache-2.0 from the NLTK distribution.
 
-[Unreleased]: https://github.com/273v/kaos-nlp-core/compare/v0.1.0a3...HEAD
+[Unreleased]: https://github.com/273v/kaos-nlp-core/compare/v0.1.7...HEAD
+[0.1.7]: https://github.com/273v/kaos-nlp-core/compare/v0.1.6...v0.1.7
 [0.1.0a3]: https://github.com/273v/kaos-nlp-core/compare/v0.1.0a2...v0.1.0a3
 [0.1.0a2]: https://github.com/273v/kaos-nlp-core/releases/tag/v0.1.0a2
 [0.1.0a1]: https://github.com/273v/kaos-nlp-core/releases/tag/v0.1.0a1

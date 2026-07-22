@@ -504,6 +504,67 @@ class TestAnalyze:
             run_cli(["analyze", str(tmp_path / "missing.txt")])
 
 
+class TestReadability:
+    def test_human(self, sample_text: Path) -> None:
+        output = run_cli(["readability", str(sample_text)])
+        assert "Flesch-Kincaid:" in output
+        assert "Flesch Reading Ease:" in output
+        assert "Gunning Fog:" in output
+        assert "SMOG:" in output
+        assert "Dale-Chall" not in output  # no familiar-word list supplied
+
+    def test_json_golden(self, tmp_path: Path) -> None:
+        f = tmp_path / "golden.txt"
+        f.write_text("The cat sat on the mat. The dog ate a bone.", encoding="utf-8")
+        data = run_cli_json(["readability", str(f), "--json"])
+        assert data["command"] == "readability"
+        assert data["file"] == "golden.txt"
+        assert data["counts"] == {
+            "sentences": 2,
+            "words": 11,
+            "letters": 31,
+            "letters_and_digits": 31,
+            "syllables": 11,
+            "polysyllable_words": 0,
+            "fog_complex_words": 0,
+            "long_words": 0,
+        }
+        assert data["scores"] == {
+            "flesch_reading_ease": 116.6525,
+            "flesch_kincaid_grade": -1.645,
+            "automated_readability_index": -5.4064,
+            "coleman_liau_index": -4.6109,
+            "smog_index": 3.1291,
+            "gunning_fog": 2.2,
+            "lix": 5.5,
+            "rix": 0.0,
+            "smog_valid": False,
+        }
+
+    def test_naive_fog_flag(self, tmp_path: Path) -> None:
+        f = tmp_path / "fog.txt"
+        f.write_text("We toured Wisconsin. The state-of-the-art trespasses arrived.")
+        strict = run_cli_json(["readability", str(f), "--json"])
+        naive = run_cli_json(["readability", str(f), "--json", "--naive-fog"])
+        assert naive["scores"]["gunning_fog"] >= strict["scores"]["gunning_fog"]
+        assert naive["counts"]["fog_complex_words"] >= strict["counts"]["fog_complex_words"]
+
+    def test_familiar_words_enables_dale_chall(self, tmp_path: Path) -> None:
+        from kaos_nlp_core.matching import FstSet
+
+        wordset = tmp_path / "familiar.fst"
+        FstSet(["the", "cat", "sat", "on", "mat", "dog", "ate", "a"]).save(str(wordset))
+        f = tmp_path / "dc.txt"
+        f.write_text("The cat sat on the mat. The dog ate a bone.", encoding="utf-8")
+        data = run_cli_json(["readability", str(f), "--json", "--familiar-words", str(wordset)])
+        assert data["counts"]["unfamiliar_words"] == 1
+        assert data["scores"]["dale_chall"] == pytest.approx(5.3447, abs=1e-3)
+
+    def test_missing_file(self, tmp_path: Path) -> None:
+        with pytest.raises(SystemExit):
+            run_cli(["readability", str(tmp_path / "missing.txt")])
+
+
 # ---------------------------------------------------------------------------
 # General / Edge cases
 # ---------------------------------------------------------------------------

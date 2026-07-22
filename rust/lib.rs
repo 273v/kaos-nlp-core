@@ -61,6 +61,7 @@ fn kaos_nlp_core_rust(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     bindings::lexicon::register_module(m)?;
     bindings::matching::register_module(m)?;
     bindings::quality::register_module(m)?;
+    bindings::readability::register_module(m)?;
     bindings::searcher::register_module(m)?;
     bindings::segmentation::register_module(m)?;
     bindings::similarity::register_module(m)?;
