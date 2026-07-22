@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.10] — 2026-07-22
+
+### Security
+
+- Refresh the resolved Python lock shipped in the sdist: `click`
+  8.3.2 → 8.4.2 (PYSEC-2026-2132) and `pydantic-settings`
+  2.13.1 → 2.14.2 (GHSA-4xgf-cpjx-pc3j). Neither package is a
+  runtime dependency of the wheel (runtime: numpy only); this clears
+  pip-audit for source-build environments resolved from the sdist's
+  `uv.lock`. With 0.1.9's Rust bumps, both `cargo audit`/`cargo deny`
+  and `pip-audit` lanes are now fully clean.
+
+  No public API, CLI, JSON, pickle, or serialized-artifact change.
+
 ## [0.1.9] — 2026-07-22
 
 ### Security
@@ -878,7 +892,8 @@ This release is the first to ship under the Apache License 2.0. Earlier
 internal versions were proprietary. The bundled Punkt model (`models/
 default.npkt.gz`) is Apache-2.0 from the NLTK distribution.
 
-[Unreleased]: https://github.com/273v/kaos-nlp-core/compare/v0.1.9...HEAD
+[Unreleased]: https://github.com/273v/kaos-nlp-core/compare/v0.1.10...HEAD
+[0.1.10]: https://github.com/273v/kaos-nlp-core/compare/v0.1.9...v0.1.10
 [0.1.9]: https://github.com/273v/kaos-nlp-core/compare/v0.1.8...v0.1.9
 [0.1.8]: https://github.com/273v/kaos-nlp-core/compare/v0.1.7...v0.1.8
 [0.1.7]: https://github.com/273v/kaos-nlp-core/compare/v0.1.6...v0.1.7
