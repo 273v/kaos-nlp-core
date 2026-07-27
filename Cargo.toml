@@ -83,7 +83,7 @@ infer = { version = "0.22", default-features = false, features = ["std"] }
 # SIMD-accelerated string ops. 4.6.1 is a pure C-side patch over 4.6.0 that
 # fixes OOB reads in `sz_find_skylake` / `sz_rfind_skylake` for null-byte
 # needles and a signed-char bug in `sz_find_byte_serial`. No Rust API change.
-stringzilla = "4.6.1"
+stringzilla = "5.0.3"
 
 # Dense-vector distance / similarity kernels live in our own Rust source
 # at `rust/core/similarity/kernels.rs`. The 0.1.0a4 line briefly pulled in
