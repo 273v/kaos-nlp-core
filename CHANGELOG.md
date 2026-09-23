@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.11] — 2026-09-22
+
 ### Fixed
 
 - Sentence spans from `PunktSentenceTokenizer::tokenize_spans`,
@@ -912,7 +914,8 @@ This release is the first to ship under the Apache License 2.0. Earlier
 internal versions were proprietary. The bundled Punkt model (`models/
 default.npkt.gz`) is Apache-2.0 from the NLTK distribution.
 
-[Unreleased]: https://github.com/273v/kaos-nlp-core/compare/v0.1.10...HEAD
+[Unreleased]: https://github.com/273v/kaos-nlp-core/compare/v0.1.11...HEAD
+[0.1.11]: https://github.com/273v/kaos-nlp-core/compare/v0.1.10...v0.1.11
 [0.1.10]: https://github.com/273v/kaos-nlp-core/compare/v0.1.9...v0.1.10
 [0.1.9]: https://github.com/273v/kaos-nlp-core/compare/v0.1.8...v0.1.9
 [0.1.8]: https://github.com/273v/kaos-nlp-core/compare/v0.1.7...v0.1.8
