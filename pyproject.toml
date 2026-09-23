@@ -1,5 +1,6 @@
 [build-system]
-requires = ["maturin>=1.8,<2.0"]
+# 1.8.2 is the first maturin that parses the PEP 639 `license-files` list below.
+requires = ["maturin>=1.8.2,<2.0"]
 build-backend = "maturin"
 
 [project]
@@ -95,7 +96,7 @@ dev = [
   "kaos-core>=0.1.0,<0.2",
   "cryptography>=46.0.7",
   "httpx>=0.28.0",
-  "maturin>=1.8,<2.0",
+  "maturin>=1.8.2,<2.0",
   "pytest>=9.0.3",
   "pytest-asyncio>=1.3.0",
   "pytest-benchmark>=5.1.0",
