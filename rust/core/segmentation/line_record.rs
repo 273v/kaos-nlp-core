@@ -13,8 +13,9 @@
 //! Performance design notes:
 //!
 //! * Single pass over the input. Newlines are located via stringzilla's
-//!   `find_newline_utf8`, which understands LF, CR, CRLF, U+0085, U+2028,
-//!   U+2029, U+000B, and U+000C in one SIMD-accelerated probe.
+//!   batched `Utf8Newlines` iterator, which understands LF, CR, CRLF,
+//!   U+0085, U+2028, U+2029, U+000B, and U+000C in one SIMD-accelerated
+//!   sweep.
 //! * ASCII fast path. When a line is pure ASCII we count chars from byte
 //!   length directly; otherwise we walk the line once with `char_indices`.
 //! * Feature accumulation is fused with the line walk — `CaseProfile`,
@@ -29,7 +30,7 @@ use stringzilla::sz;
 
 /// Newline-terminator kind.
 ///
-/// `find_newline_utf8` may return any of the Unicode-defined line terminators;
+/// stringzilla's `Utf8Newlines` may yield any of the Unicode-defined line terminators;
 /// we collapse them to a small enum the higher layers can pattern-match
 /// without re-decoding bytes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -214,55 +215,71 @@ pub fn extract_line_records(source: &str) -> Vec<LineRecord> {
     let mut records: Vec<LineRecord> = Vec::with_capacity(source.len() / 64 + 4);
 
     let bytes = source.as_bytes();
+    let base = bytes.as_ptr() as usize;
     let mut cursor: usize = 0;
 
-    while cursor < bytes.len() {
-        let tail = &bytes[cursor..];
-        let (content_end, term_len, terminator) = match sz::find_newline_utf8(tail) {
-            Some(span) => {
-                let content_end = cursor + span.offset;
-                let term_len = span.length as u32;
-                let kind = classify_terminator(&bytes[content_end..content_end + span.length]);
-                (content_end, term_len, kind)
-            }
-            None => {
-                // No more terminators — last line runs to EOF with no terminator.
-                (bytes.len(), 0, LineTerminator::None)
-            }
-        };
+    // `Utf8Newlines` yields each terminator as a sub-slice of `bytes`, in
+    // order, one per delimiter (CRLF is a single two-byte match; runs of
+    // consecutive terminators are NOT coalesced). The slice's address gives
+    // its byte offset; the content line is everything since the previous
+    // terminator.
+    for terminator_bytes in sz::Utf8Newlines::new(bytes) {
+        let content_end = terminator_bytes.as_ptr() as usize - base;
+        let term_len = terminator_bytes.len();
+        debug_assert!(content_end >= cursor && term_len > 0);
+        push_line(
+            &mut records,
+            bytes,
+            cursor,
+            content_end,
+            term_len as u32,
+            classify_terminator(terminator_bytes),
+        );
+        cursor = content_end + term_len;
+    }
 
-        let line_bytes = &bytes[cursor..content_end];
-        let line_str = unsafe {
-            // Safe because `cursor` and `content_end` always sit on char
-            // boundaries: `cursor` advances by `term_len` (which is the byte
-            // length of a complete UTF-8 line terminator) and `content_end`
-            // is the byte offset where the next terminator starts, which is
-            // always a char boundary.
-            std::str::from_utf8_unchecked(line_bytes)
-        };
-
-        records.push(scan_line_features(
-            line_str,
-            cursor as u32,
-            content_end as u32,
-            term_len,
-            terminator,
-        ));
-
-        cursor = content_end + term_len as usize;
-        // `find_newline_utf8` returns `None` only when no terminator is left;
-        // if it returned Some with offset == tail.len() and term_len == 0 we'd
-        // loop forever. The crate doesn't do that, but assert defensively in
-        // debug builds.
-        debug_assert!(cursor > content_end || term_len == 0);
-        if term_len == 0 {
-            break;
-        }
+    // Trailing content after the last terminator (or the whole input when
+    // there is none) is a final line with no terminator. Input ending in a
+    // terminator produces no extra empty record.
+    if cursor < bytes.len() {
+        push_line(
+            &mut records,
+            bytes,
+            cursor,
+            bytes.len(),
+            0,
+            LineTerminator::None,
+        );
     }
 
     fill_blank_neighbours(&mut records);
 
     records
+}
+
+/// Build the record for `bytes[start..content_end]` and append it.
+fn push_line(
+    records: &mut Vec<LineRecord>,
+    bytes: &[u8],
+    start: usize,
+    content_end: usize,
+    term_len: u32,
+    terminator: LineTerminator,
+) {
+    let line_str = unsafe {
+        // Safe because `start` and `content_end` always sit on char
+        // boundaries: `start` is 0 or the byte just past a complete UTF-8
+        // line terminator, and `content_end` is the byte offset where the
+        // next terminator starts (or EOF), which is always a char boundary.
+        std::str::from_utf8_unchecked(&bytes[start..content_end])
+    };
+    records.push(scan_line_features(
+        line_str,
+        start as u32,
+        content_end as u32,
+        term_len,
+        terminator,
+    ));
 }
 
 /// Classify the bytes that constitute a line terminator.
@@ -761,10 +778,115 @@ mod tests {
         }
     }
 
+    /// Scalar reference splitter: (start, end, term_len, terminator) per line.
+    /// Terminators: LF, VT, FF, CR, CRLF (one terminator), NEL, LS, PS.
+    fn oracle_lines(src: &str) -> Vec<(usize, usize, usize, LineTerminator)> {
+        let b = src.as_bytes();
+        let mut out = Vec::new();
+        let (mut start, mut i) = (0usize, 0usize);
+        while i < b.len() {
+            let (len, kind) = match b[i] {
+                b'\r' if b.get(i + 1) == Some(&b'\n') => (2, LineTerminator::CrLf),
+                b'\r' => (1, LineTerminator::Cr),
+                b'\n' => (1, LineTerminator::Lf),
+                0x0B | 0x0C => (1, LineTerminator::OtherUnicode),
+                0xC2 if b.get(i + 1) == Some(&0x85) => (2, LineTerminator::OtherUnicode),
+                0xE2 if b.get(i + 1) == Some(&0x80)
+                    && matches!(b.get(i + 2), Some(0xA8 | 0xA9)) =>
+                {
+                    (3, LineTerminator::OtherUnicode)
+                }
+                _ => {
+                    i += 1;
+                    continue;
+                }
+            };
+            out.push((start, i, len, kind));
+            i += len;
+            start = i;
+        }
+        if start < b.len() {
+            out.push((start, b.len(), 0, LineTerminator::None));
+        }
+        out
+    }
+
+    fn assert_matches_oracle(src: &str) {
+        let got: Vec<_> = extract_line_records(src)
+            .iter()
+            .map(|r| {
+                (
+                    r.start as usize,
+                    r.end as usize,
+                    r.term_len as usize,
+                    r.terminator,
+                )
+            })
+            .collect();
+        assert_eq!(got, oracle_lines(src), "input: {src:?}");
+    }
+
+    #[test]
+    fn every_unicode_terminator_kind() {
+        for (src, kind, len) in [
+            ("a\u{000B}b", LineTerminator::OtherUnicode, 1),
+            ("a\u{000C}b", LineTerminator::OtherUnicode, 1),
+            ("a\u{0085}b", LineTerminator::OtherUnicode, 2),
+            ("a\u{2028}b", LineTerminator::OtherUnicode, 3),
+            ("a\u{2029}b", LineTerminator::OtherUnicode, 3),
+        ] {
+            let recs = extract_line_records(src);
+            assert_eq!(recs.len(), 2, "{src:?}");
+            assert_eq!(recs[0].terminator, kind);
+            assert_eq!(recs[0].term_len, len);
+            assert_eq!(recs[1].text(src), "b");
+            assert_eq!(recs[1].terminator, LineTerminator::None);
+            assert_matches_oracle(src);
+        }
+    }
+
+    #[test]
+    fn consecutive_and_mixed_terminators_are_not_coalesced() {
+        for src in [
+            "\n\n\n",
+            "\r\r\n\n",
+            "\n\r",
+            "\r\n\r\n",
+            "a\r\u{2028}\u{2029}\u{0085}b\n",
+            "\u{001C}\u{001D}\u{001E}x",
+            "ends with cr\r",
+            "\u{2027}\u{202A}\u{0084}",
+        ] {
+            assert_matches_oracle(src);
+        }
+        assert_eq!(extract_line_records("\n\n\n").len(), 3);
+        assert_eq!(extract_line_records("\r\r\n\n").len(), 3);
+    }
+
+    #[test]
+    fn large_input_crosses_iterator_batches() {
+        // Far more terminators than one stringzilla batch holds, with CRLF
+        // pairs and multi-byte terminators landing on every alignment.
+        let unit = "ab\r\ncd\u{2028}e\n\r\u{0085}f\u{000C}g\r";
+        let src = unit.repeat(5_000);
+        assert_matches_oracle(&src);
+    }
+
     proptest! {
         #[test]
         fn extraction_never_panics(text in "\\PC{0,512}") {
             let _ = extract_line_records(&text);
+        }
+
+        #[test]
+        fn matches_scalar_oracle(
+            text in "[ab \u{00E9}\n\r\u{000B}\u{000C}\u{0085}\u{2028}\u{2029}\u{2027}\u{0084}\u{001E}]{0,768}"
+        ) {
+            let got: Vec<_> = extract_line_records(&text)
+                .iter()
+                .map(|r| (r.start as usize, r.end as usize, r.term_len as usize, r.terminator))
+                .collect();
+            prop_assert_eq!(got, oracle_lines(&text));
         }
 
         #[test]
