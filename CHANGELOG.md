@@ -8,6 +8,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.12] — 2026-09-22
+
+### Security
+
+- **lru 0.18.4** (floor `>=0.18.2`) in the native extension: fixes
+  RUSTSEC-2026-0253, a potential use-after-free in `LruCache::pop()` from
+  missing panic safety.
+
+### Changed
+
+- **stringzilla 4.6 → 5.1.2.** Line-record extraction now uses stringzilla 5's
+  `Utf8Newlines` iterator in place of the removed `find_newline_utf8`. The
+  terminator set (LF, VT, FF, CR, CRLF, NEL, LS, PS) and offsets are
+  unchanged. A new property test checks the implementation against a
+  reference splitter, and it passes identically on the 4.x and 5.x
+  implementations. No Python API change.
+- **Build requirement `maturin>=1.8.2`.** maturin 1.8.0 and 1.8.1 reject the
+  PEP 639 `license-files` array, so sdist builds with those versions failed.
+
+### Dependencies
+
+- pyo3 0.29.2 and cargo-minor refresh; Python lock refresh (numpy 2.5.3,
+  cryptography 50.0.1, anyio 4.15.1).
+
 ## [0.1.11] — 2026-09-22
 
 ### Fixed
