@@ -8,6 +8,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.11] — 2026-09-22
+
+### Fixed
+
+- Sentence spans from `PunktSentenceTokenizer::tokenize_spans`,
+  `segment_sentences` and `segment_paragraphs` (Python:
+  `PunktTokenizer.tokenize_spans`, `segment_sentences`,
+  `segment_paragraphs`) were wrong for text with `\r\n` line endings.
+  Word tokenization split lines with `str::lines()` but assumed every
+  terminator was one byte, so each CRLF shifted later offsets back by a
+  byte. Spans were off by one per preceding line and, when the shifted
+  offset fell inside a multi-byte character (curly quotes, bullets,
+  dashes), slicing panicked with "byte index N is not a char boundary"
+  (surfacing in Python as `PanicException`). Line offsets now come from
+  the terminator actually consumed. Regression tests cover CRLF, curly
+  quotes, bullets, dashes, ellipses, CJK, emoji, combining marks and
+  abbreviations next to curly quotes, plus proptest fuzzing that spans
+  are ordered, on char boundaries and cover all non-whitespace text.
+
+  Span offsets stay byte offsets in Rust and char offsets in Python; no
+  API change. Sentence boundaries for LF-only text are unchanged.
+
 ## [0.1.10] — 2026-07-22
 
 ### Security
@@ -892,7 +914,8 @@ This release is the first to ship under the Apache License 2.0. Earlier
 internal versions were proprietary. The bundled Punkt model (`models/
 default.npkt.gz`) is Apache-2.0 from the NLTK distribution.
 
-[Unreleased]: https://github.com/273v/kaos-nlp-core/compare/v0.1.10...HEAD
+[Unreleased]: https://github.com/273v/kaos-nlp-core/compare/v0.1.11...HEAD
+[0.1.11]: https://github.com/273v/kaos-nlp-core/compare/v0.1.10...v0.1.11
 [0.1.10]: https://github.com/273v/kaos-nlp-core/compare/v0.1.9...v0.1.10
 [0.1.9]: https://github.com/273v/kaos-nlp-core/compare/v0.1.8...v0.1.9
 [0.1.8]: https://github.com/273v/kaos-nlp-core/compare/v0.1.7...v0.1.8

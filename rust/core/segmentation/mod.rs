@@ -233,18 +233,7 @@ impl PunktSentenceTokenizer {
         let mut tokens = Vec::new();
         let mut parastart = true;
 
-        let lines: Vec<&str> = text.lines().collect();
-
-        // Pre-calculate line byte offsets
-        let mut line_byte_offsets = Vec::with_capacity(lines.len());
-        let mut cumulative_offset = 0;
-        for (i, line) in lines.iter().enumerate() {
-            line_byte_offsets.push(cumulative_offset);
-            cumulative_offset += line.len();
-            if i < lines.len() - 1 {
-                cumulative_offset += 1; // newline
-            }
-        }
+        let (lines, line_byte_offsets) = split_lines_with_offsets(text);
 
         for (line_idx, line) in lines.iter().enumerate() {
             let mut linestart = true;
@@ -376,6 +365,31 @@ impl PunktSentenceTokenizer {
 
         paragraphs
     }
+}
+
+/// Split `text` into lines exactly as [`str::lines`] does (terminators `\n`
+/// and `\r\n` stripped, no trailing empty line), returning each line
+/// together with its true byte offset in `text`.
+///
+/// Offsets are derived from the terminator actually consumed, never from an
+/// assumed one-byte newline: with `\r\n` endings an assumed width of one
+/// shifts every later token back by one byte per line, and the resulting
+/// sentence spans land inside multi-byte characters (curly quotes, bullets,
+/// dashes) and panic when sliced.
+fn split_lines_with_offsets(text: &str) -> (Vec<&str>, Vec<usize>) {
+    let mut lines = Vec::new();
+    let mut offsets = Vec::new();
+    let mut offset = 0;
+    for raw in text.split_inclusive('\n') {
+        let line = raw
+            .strip_suffix('\n')
+            .map(|l| l.strip_suffix('\r').unwrap_or(l))
+            .unwrap_or(raw);
+        lines.push(line);
+        offsets.push(offset);
+        offset += raw.len();
+    }
+    (lines, offsets)
 }
 
 impl Default for PunktSentenceTokenizer {
@@ -683,5 +697,187 @@ mod tests {
         let text = "Single paragraph\nwith line wrap.";
         let segs = segment_paragraphs_simple(text);
         assert_eq!(segs.len(), 1);
+    }
+}
+
+/// Regression tests for sentence spans on non-ASCII and CRLF text.
+///
+/// `tokenize_words` once assumed every line terminator was one byte wide,
+/// so each `\r\n` shifted later token offsets back by one byte and spans
+/// ended inside multi-byte characters (panicking in `Segment::text`).
+#[cfg(test)]
+mod unicode_span_tests {
+    use super::*;
+    use once_cell::sync::Lazy;
+    use proptest::prelude::*;
+
+    static DEFAULT: Lazy<PunktSentenceTokenizer> = Lazy::new(default_tokenizer);
+
+    /// Invariants every span list must satisfy: spans are on char boundaries,
+    /// ordered and non-overlapping, end on a token (except an unterminated
+    /// final sentence, which runs to the end of the text), and the
+    /// text outside the spans is whitespace only (spans cover every token).
+    fn assert_spans_valid(text: &str, spans: &[(usize, usize)]) {
+        let mut prev_end = 0;
+        for (idx, &(start, end)) in spans.iter().enumerate() {
+            assert!(start <= end, "span {idx} inverted: {start}..{end}");
+            assert!(end <= text.len(), "span {idx} past end: {end}");
+            assert!(text.is_char_boundary(start), "span {idx} start {start}");
+            assert!(text.is_char_boundary(end), "span {idx} end {end}");
+            assert!(prev_end <= start, "span {idx} overlaps previous");
+            let gap = &text[prev_end..start];
+            assert!(
+                gap.chars().all(char::is_whitespace),
+                "non-whitespace {gap:?} dropped before span {idx}"
+            );
+            let body = &text[start..end];
+            assert!(!body.is_empty(), "span {idx} empty");
+            // An unterminated final sentence runs to the end of the text
+            // (existing behaviour), so only it may carry trailing whitespace.
+            assert!(
+                end == text.len() || !body.ends_with(char::is_whitespace),
+                "span {idx} {body:?} ends in whitespace"
+            );
+            prev_end = end;
+        }
+        let tail = &text[prev_end..];
+        assert!(
+            tail.chars().all(char::is_whitespace),
+            "non-whitespace tail {tail:?} not covered"
+        );
+    }
+
+    fn check(text: &str) -> Vec<&str> {
+        let spans = DEFAULT.tokenize_spans(text);
+        assert_spans_valid(text, &spans);
+        // Segment::text is the call that panicked in the field.
+        segment_sentences(text, &DEFAULT)
+            .iter()
+            .map(|s| s.text(text))
+            .collect()
+    }
+
+    #[test]
+    fn crlf_spans_are_exact() {
+        let text = "Line one.\r\nLine two.\r\nSee \u{2022}\u{2022} Bullet here. Next \u{2019}x.";
+        assert_eq!(
+            check(text),
+            vec![
+                "Line one.",
+                "Line two.",
+                "See \u{2022}\u{2022} Bullet here.",
+                "Next \u{2019}x."
+            ]
+        );
+    }
+
+    #[test]
+    fn crlf_before_multibyte_punctuation_does_not_panic() {
+        // The field failures: a CRLF document with curly quotes / bullets.
+        let mut text = String::new();
+        for i in 0..200 {
+            text.push_str(&format!(
+                "\u{2022} Item {i}. The court said \u{201c}no.\u{201d} It\u{2019}s done \u{2014} really\u{2026}\r\n"
+            ));
+        }
+        check(&text);
+    }
+
+    #[test]
+    fn crlf_blank_lines_and_mixed_terminators() {
+        check("First.\r\n\r\nSecond \u{201c}para.\u{201d}\n\nThird.\r\nFourth \u{2013} end.\r\n");
+        check("\r\n\r\n\u{2022}\r\n\u{2022} A.\r\n");
+        check("Bare\rcarriage \u{2019}return. Next.\r");
+    }
+
+    #[test]
+    fn multibyte_punctuation() {
+        for text in [
+            "He said \u{201c}Stop.\u{201d} Then he left.",
+            "It\u{2019}s over. Isn\u{2019}t it?",
+            "\u{2022} First item. \u{2022} Second item.",
+            "Wait\u{2014}what? Pages 1\u{2013}3. Done.",
+            "And so\u{2026} It ended. Really\u{2026}",
+            "\u{2018}Single.\u{2019} \u{201c}Double.\u{201d}",
+        ] {
+            check(text);
+        }
+    }
+
+    #[test]
+    fn abbreviations_adjacent_to_curly_quotes() {
+        for text in [
+            "See \u{201c}U.S. v. Smith,\u{201d} 123 F.3d 456. Next sentence.",
+            "The \u{201c}Inc.\u{201d} suffix. Dr.\u{2019}s note. Mr.\u{201d} Jones.",
+            "Cf. \u{2018}Id.\u{2019} at 5. \u{201c}Id.\u{201d} Also \u{00a7} 1.2.",
+        ] {
+            check(text);
+        }
+    }
+
+    #[test]
+    fn cjk_emoji_combining() {
+        for text in [
+            "\u{6771}\u{4eac}\u{30bf}\u{30ef}\u{30fc}\u{3002} Tokyo. \u{65e5}\u{672c}\u{8a9e}\u{3002}",
+            "Great job \u{1f600}. Next \u{1f468}\u{200d}\u{1f469}\u{200d}\u{1f467} family. End \u{1f44d}\u{1f3fd}.",
+            "Cafe\u{0301} is open. Nai\u{0308}ve e\u{0301}. Done.",
+            "\u{1f600}.\r\n\u{1f600}. \u{0301}.",
+        ] {
+            check(text);
+        }
+    }
+
+    #[test]
+    fn unicode_whitespace_separators() {
+        check("One.\u{00a0}Two.\u{2028}Three.\u{3000}Four.\u{0085}Five.");
+    }
+
+    fn unicode_doc() -> impl Strategy<Value = String> {
+        let piece = prop_oneof![
+            Just("Mr.".to_string()),
+            Just("U.S.".to_string()),
+            Just("Id.".to_string()),
+            Just(".".to_string()),
+            Just("...".to_string()),
+            Just("?".to_string()),
+            Just(" ".to_string()),
+            Just("\n".to_string()),
+            Just("\r\n".to_string()),
+            Just("\r".to_string()),
+            Just("\u{00a0}".to_string()),
+            Just("\u{2028}".to_string()),
+            Just("\u{2019}".to_string()),
+            Just("\u{201c}".to_string()),
+            Just("\u{201d}".to_string()),
+            Just("\u{2022}".to_string()),
+            Just("\u{2014}".to_string()),
+            Just("\u{2013}".to_string()),
+            Just("\u{2026}".to_string()),
+            Just("\u{0301}".to_string()),
+            Just("\u{1f600}".to_string()),
+            Just("\u{6771}\u{4eac}\u{3002}".to_string()),
+            "[A-Za-z]{1,8}",
+            "\\PC{1,4}",
+        ];
+        prop::collection::vec(piece, 0..80).prop_map(|v| v.concat())
+    }
+
+    proptest! {
+        #[test]
+        fn spans_valid_on_random_unicode(text in unicode_doc()) {
+            check(&text);
+            let _ = segment_paragraphs(&text, &DEFAULT);
+            let _ = DEFAULT.tokenize_paragraphs(&text);
+        }
+
+        #[test]
+        fn spans_valid_on_arbitrary_text(text in "\\PC{0,256}") {
+            check(&text);
+        }
+
+        #[test]
+        fn spans_valid_on_arbitrary_text_with_crlf(text in "(\\PC{0,24}(\r\n|\n|\r)?){0,16}") {
+            check(&text);
+        }
     }
 }

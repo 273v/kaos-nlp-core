@@ -444,7 +444,13 @@ mod tests {
             0.0, 1.0, // 3
         ];
         let nd = near_duplicates(&matrix, 2, 0.99, false, None).unwrap();
-        let edges: Vec<(u32, u32)> = nd.pairs.chunks_exact(2).map(|c| (c[0], c[1])).collect();
+        let edges: Vec<(u32, u32)> = nd
+            .pairs
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|&[a, b]| (a, b))
+            .collect();
         // Within-cluster pairs only; never a cross-cluster edge.
         assert!(edges.contains(&(0, 1)));
         assert!(edges.contains(&(2, 3)));

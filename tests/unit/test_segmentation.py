@@ -139,6 +139,56 @@ class TestPunktTokenizerSpans:
         assert span_texts == seg_texts
 
 
+class TestCrlfUnicodeSpans:
+    """Regression: CRLF line endings shifted spans into multi-byte characters.
+
+    Each ``\\r\\n`` was counted as one byte, so later sentence offsets drifted
+    back a byte per line and landed inside curly quotes, bullets and dashes,
+    panicking in ``Segment::text`` (seen on PDF-extracted court opinions).
+    """
+
+    TEXTS = (
+        "Line one.\r\nLine two.\r\nSee \u2022\u2022 Bullet here. Next \u2019x.",
+        "\U0001f600.\r\n\U0001f600. \u0301.",
+        "First.\r\n\r\nSecond \u201cpara.\u201d\n\nThird.\r\nFourth \u2013 end.\r\n",
+        "".join(
+            f"\u2022 Item {i}. The court said \u201cno.\u201d "
+            f"It\u2019s done \u2014 really\u2026\r\n"
+            for i in range(200)
+        ),
+        "\u6771\u4eac\u3002 Tokyo.\r\nCafe\u0301 is open. U.S. v. \u201cSmith.\u201d End.",
+    )
+
+    @pytest.mark.parametrize("text", TEXTS)
+    def test_segment_sentences_round_trip(self, text: str) -> None:
+        segs = segment_sentences(text)
+        assert segs
+        prev_end = 0
+        for seg in segs:
+            assert prev_end <= seg.start <= seg.end <= len(text)
+            assert text[prev_end : seg.start].strip() == ""
+            assert text[seg.start : seg.end] == seg.text
+            prev_end = seg.end
+        assert text[prev_end:].strip() == ""
+
+    @pytest.mark.parametrize("text", TEXTS)
+    def test_tokenize_spans_match_segments(self, text: str) -> None:
+        tok = PunktTokenizer(PunktParameters.default_embedded())
+        spans = tok.tokenize_spans(text)
+        segs = segment_sentences(text, tok)
+        assert [text[s:e] for s, e in spans] == [seg.text for seg in segs]
+        segment_paragraphs(text, tok)
+
+    def test_crlf_exact_sentences(self) -> None:
+        text = self.TEXTS[0]
+        assert [seg.text for seg in segment_sentences(text)] == [
+            "Line one.",
+            "Line two.",
+            "See \u2022\u2022 Bullet here.",
+            "Next \u2019x.",
+        ]
+
+
 class TestPunktTokenizerPrecisionRecall:
     def test_pr_parameter(self):
         tok = PunktTokenizer()
