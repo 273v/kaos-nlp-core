@@ -7,6 +7,7 @@
 //!
 //! Architecture mirrors kelvin_nlp_v1/rust/core/characters/.
 
+pub mod casefold;
 pub mod properties;
 pub mod unicode;
 

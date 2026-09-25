@@ -8,6 +8,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `normalize(..., fold_case=True)` (Rust `NormalizeOptions::fold_case`) only
+  lowercased ASCII `A-Z`: `emit_one` in `rust/core/segmentation/normalize.rs`
+  called `char::to_ascii_lowercase`, so `"SÃO PAULO İstanbul STRAßE"` kept
+  `Ã`, `İ` and `ß`. `fold_case` now applies Unicode full case folding
+  (`CaseFolding.txt` statuses C + F, default non-Turkic mappings; the same
+  result as Python's `str.casefold()`) through ICU4X `icu_casemap`, exposed
+  as `core::characters::casefold`. Folds that expand to several chars
+  (`ß` → `ss`, `İ` → `i` + U+0307, `ﬁ` → `fi`) emit one offset entry per
+  output char, each pointing at the source char that produced it, so
+  `orig_char_offsets` keeps `len == len(text)`, stays monotonic and
+  `original_char` resolves every output position. ASCII chars keep a
+  table-free fast path; `ascii_fold` benchmark numbers are unchanged within
+  noise, and a new `unicode_fold` benchmark covers the non-ASCII path
+  (~120 MiB/s on mixed-case Latin/Greek/Turkish text).
+
+  Behaviour change: non-ASCII uppercase letters are now folded wherever
+  `fold_case` is on, including the canonical forms used internally by
+  `detect_boilerplate` and structure scoring, so repeated headers that
+  differ only in non-ASCII case now group together.
+
+### Dependencies
+
+- Added `icu_casemap` 2.3 (Unicode-3.0, same ICU4X release as
+  `icu_properties`).
+
 ## [0.1.12] — 2026-09-22
 
 ### Security

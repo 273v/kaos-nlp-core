@@ -91,9 +91,70 @@ def test_fold_case_ascii() -> None:
     assert r.text == "hello world"
 
 
-def test_fold_case_only_affects_ascii_letters() -> None:
+def test_fold_case_folds_non_ascii_letters() -> None:
     r = normalize("ÉCOLE", fold_case=True)
-    assert r.text == "École"
+    assert r.text == "école"
+
+
+def test_fold_case_mixed_scripts_and_multi_char_folds() -> None:
+    src = "SÃO PAULO İstanbul STRAßE"
+    r = normalize(src, fold_case=True)
+    # Full Unicode case folding: ß -> "ss", İ -> "i" + U+0307 (default,
+    # non-Turkic mapping). This equals Python's str.casefold().
+    assert r.text == "são paulo i\u0307stanbul strasse"
+    assert r.text == src.casefold()
+
+
+@pytest.mark.parametrize(
+    "src",
+    [
+        "ΟΔΥΣΣΕΥΣ ς",
+        "ǅemal ﬁnance ŉ",
+        "Ꭰ Cherokee ꭰ",
+        "KELVIN \u212a Ω",
+        "東京タワー 😀👍🏽 e\u0301",
+        "",
+    ],
+)
+def test_fold_case_matches_python_casefold(src: str) -> None:
+    assert normalize(src, fold_case=True).text == src.casefold()
+
+
+def test_fold_case_expansion_offsets_map_back_to_source_char() -> None:
+    src = "Aß İx"
+    r = normalize(src, fold_case=True)
+    assert r.text == "ass i\u0307x"
+    # Output chars from one expanding fold all point at the source char.
+    assert r.orig_char_offsets == [0, 1, 1, 2, 3, 3, 4]
+    sources = []
+    for i in range(len(r.text)):
+        src_idx = r.original_char(i)
+        assert src_idx is not None
+        sources.append(src[src_idx])
+    assert sources == [
+        "A",
+        "ß",
+        "ß",
+        " ",
+        "İ",
+        "İ",
+        "x",
+    ]
+
+
+def test_fold_case_offsets_with_astral_chars() -> None:
+    # Python offsets are code points, so astral chars count as one.
+    src = "😀ẞ😀É"
+    r = normalize(src, fold_case=True)
+    assert r.text == "😀ss😀é"
+    assert r.orig_char_offsets == [0, 1, 1, 2, 3]
+
+
+def test_fold_case_ascii_input_offsets_are_identity() -> None:
+    src = "Hello WORLD"
+    r = normalize(src, fold_case=True)
+    assert r.text == "hello world"
+    assert r.orig_char_offsets == list(range(len(src)))
 
 
 # ─── Strip ASCII punctuation ────────────────────────────────────────────────

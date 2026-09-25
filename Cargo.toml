@@ -63,6 +63,11 @@ rayon = "1.12"
 
 # Unicode
 icu_properties = "2.2"
+# Full Unicode case folding (CaseFolding.txt C + F statuses) for
+# `normalize(fold_case=True)` and case-insensitive multi-pattern matching.
+# Same ICU4X release train and Unicode-3.0 license as icu_properties;
+# compiled data, no runtime data loading.
+icu_casemap = "2.3"
 
 # String algorithms
 strsim = "0.11"
