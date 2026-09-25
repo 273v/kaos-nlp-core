@@ -57,6 +57,36 @@ class MultiPatternMatcher:
     The Rust ``find_all`` / ``find_all_batch`` already emit typed
     ``PatternMatchSpan`` pyclasses, so this wrapper is a thin
     delegating shim — no per-match conversion happens here.
+
+    ``start`` / ``end`` on every match are **character offsets** into the
+    original haystack (Python ``str`` indexing) and ``text`` is the
+    original haystack slice, whatever the options.
+
+    :param patterns: non-empty list of literal patterns.
+    :param case_insensitive: compare Unicode full case folds (the mapping
+        of :meth:`str.casefold`), so ``"são paulo"`` matches
+        ``"SÃO PAULO"`` and ``"strasse"`` matches ``"STRAßE"``. A match
+        must cover whole folds: ``"s"`` never matches half of a ``"ß"``.
+        No normalization form is applied (NFC ``"é"`` and NFD
+        ``"e\u0301"`` differ), and ``"İ"`` folds to ``"i\u0307"``, so it
+        does not match a bare ``"i"``.
+    :param longest_match: leftmost-longest instead of leftmost-first
+        selection.
+    :param word_boundary: keep a match only if it does not extend a word
+        at either edge. At each edge the char inside the match and the
+        char outside it must not both be word chars. Word chars are
+        Unicode letters/digits (``str.isalnum``-like: ``Alphabetic`` or
+        ``Numeric``) plus combining marks; underscore, apostrophes,
+        hyphens, other punctuation, symbols, emoji and whitespace are
+        separators. So ``"georgia"`` does not match in ``"Georgian"`` or
+        ``"georgia2"`` but does in ``"Georgia's"`` and ``"georgia_x"``.
+        Scripts written without spaces (Unicode Line_Break ``ID``, ``CJ``
+        and ``SA``: Han, kana, Thai, ...) never require a boundary, so
+        ``"東京"`` still matches in ``"東京都"``. Haystack edges are
+        boundaries. Rejected candidates are dropped before leftmost
+        selection, so another pattern can still match at that position.
+        Consistent across ``find_all``, ``find_all_batch``, ``is_match``,
+        ``count`` and ``replace_all``.
     """
 
     def __init__(
@@ -64,8 +94,12 @@ class MultiPatternMatcher:
         patterns: list[str],
         case_insensitive: bool = False,
         longest_match: bool = False,
+        *,
+        word_boundary: bool = False,
     ) -> None:
-        self._inner = _RustMultiPatternMatcher(patterns, case_insensitive, longest_match)
+        self._inner = _RustMultiPatternMatcher(
+            patterns, case_insensitive, longest_match, word_boundary
+        )
 
     def find_all(self, haystack: str) -> list[PatternMatchSpan]:
         return self._inner.find_all(haystack)

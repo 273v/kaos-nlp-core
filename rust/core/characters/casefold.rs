@@ -43,6 +43,64 @@ pub fn fold_str(text: &str) -> String {
     CaseMapper::new().fold_string(text).into_owned()
 }
 
+/// Full case fold of `text` together with a byte-level source map.
+///
+/// Returned `FoldedText::source_byte[i]` is the byte offset, in `text`, of
+/// the source char that produced folded byte `i`. Consecutive folded bytes
+/// that come from the same source char form one *fold unit*; a unit starts
+/// wherever `source_byte` changes. A span of the folded text that starts
+/// and ends on unit starts (or at the end) maps back to the source span
+/// `[source_byte[start], source_byte[end] or text.len())`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FoldedText {
+    /// The folded text.
+    pub text: String,
+    /// Source byte offset for every byte of `text`.
+    pub source_byte: Vec<u32>,
+    /// `true` when at least one source char folded to more than one char,
+    /// i.e. some fold unit can be split by a match boundary.
+    pub has_expansion: bool,
+}
+
+impl FoldedText {
+    /// Whether folded byte offset `i` is a fold-unit boundary (the start
+    /// of a unit, or the end of the text).
+    #[inline]
+    pub fn is_unit_boundary(&self, i: usize) -> bool {
+        i == 0 || i >= self.source_byte.len() || self.source_byte[i] != self.source_byte[i - 1]
+    }
+
+    /// Map a folded byte offset that is a unit boundary back to a source
+    /// byte offset. `source_len` is the byte length of the source text.
+    #[inline]
+    pub fn source_offset(&self, i: usize, source_len: usize) -> usize {
+        if i >= self.source_byte.len() {
+            source_len
+        } else {
+            self.source_byte[i] as usize
+        }
+    }
+}
+
+/// Fold `text` and record, per folded byte, the producing source char.
+pub fn fold_with_source_map(text: &str) -> FoldedText {
+    let mut out = String::with_capacity(text.len() + 8);
+    let mut source_byte: Vec<u32> = Vec::with_capacity(text.len() + 8);
+    let mut has_expansion = false;
+    for (b, ch) in text.char_indices() {
+        let before = out.len();
+        if fold_char_into(ch, &mut out) > 1 {
+            has_expansion = true;
+        }
+        source_byte.extend(std::iter::repeat_n(b as u32, out.len() - before));
+    }
+    FoldedText {
+        text: out,
+        source_byte,
+        has_expansion,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -99,7 +157,46 @@ mod tests {
         assert_eq!(fold_str("ABC"), "abc");
     }
 
+    #[test]
+    fn source_map_tracks_expansions() {
+        let f = fold_with_source_map("Aß!");
+        assert_eq!(f.text, "ass!");
+        assert_eq!(f.source_byte, vec![0, 1, 1, 3]);
+        assert!(f.has_expansion);
+        assert!(f.is_unit_boundary(1));
+        assert!(!f.is_unit_boundary(2));
+        assert!(f.is_unit_boundary(3));
+        assert!(f.is_unit_boundary(4));
+        assert_eq!(f.source_offset(3, 4), 3);
+        assert_eq!(f.source_offset(4, 4), 4);
+
+        let f = fold_with_source_map("ÉA");
+        assert_eq!(f.text, "éa");
+        assert_eq!(f.source_byte, vec![0, 0, 2]);
+        assert!(!f.has_expansion);
+
+        let f = fold_with_source_map("");
+        assert!(f.text.is_empty() && f.source_byte.is_empty());
+    }
+
     proptest! {
+        #[test]
+        fn source_map_is_consistent(text in "\\PC{0,128}") {
+            let f = fold_with_source_map(&text);
+            prop_assert_eq!(&f.text, &fold_str(&text));
+            prop_assert_eq!(f.source_byte.len(), f.text.len());
+            for &b in &f.source_byte {
+                prop_assert!(text.is_char_boundary(b as usize));
+            }
+            // Every folded char boundary inside one unit maps to the same
+            // source char; unit boundaries are char boundaries.
+            for i in 0..=f.text.len() {
+                if f.is_unit_boundary(i) {
+                    prop_assert!(f.text.is_char_boundary(i));
+                }
+            }
+        }
+
         #[test]
         fn per_char_fold_equals_string_fold(text in "\\PC{0,128}") {
             let mut per_char = String::new();

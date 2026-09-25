@@ -11,7 +11,9 @@ use pyo3::prelude::*;
 
 use crate::core::matching::{
     fst_match::{FstMap, FstMatch, FstSet},
-    multi_pattern::{MultiPatternMatchKind, MultiPatternMatcher, PatternMatch},
+    multi_pattern::{
+        MultiPatternMatchKind, MultiPatternMatcher, MultiPatternOptions, PatternMatch,
+    },
     regex_match::{RegexMatcher, RegexSetMatcher},
     substring,
 };
@@ -149,30 +151,36 @@ struct PyMultiPatternMatcher {
     patterns: Vec<String>,
     case_insensitive: bool,
     longest_match: bool,
+    word_boundary: bool,
 }
 
 #[pymethods]
 impl PyMultiPatternMatcher {
+    /// Build a matcher. `case_insensitive` compares Unicode full case folds;
+    /// `word_boundary` rejects matches that extend a word (see
+    /// `core::matching::multi_pattern` for the exact rule). Offsets are
+    /// always character offsets into the original haystack.
     #[new]
-    #[pyo3(signature = (patterns, case_insensitive=false, longest_match=false))]
+    #[pyo3(signature = (patterns, case_insensitive=false, longest_match=false, word_boundary=false))]
     fn new(
         py: Python<'_>,
         patterns: Vec<String>,
         case_insensitive: bool,
         longest_match: bool,
+        word_boundary: bool,
     ) -> PyResult<Self> {
-        let kind = if longest_match {
-            MultiPatternMatchKind::LeftmostLongest
-        } else {
-            MultiPatternMatchKind::LeftmostFirst
+        let options = MultiPatternOptions {
+            match_kind: if longest_match {
+                MultiPatternMatchKind::LeftmostLongest
+            } else {
+                MultiPatternMatchKind::LeftmostFirst
+            },
+            case_insensitive,
+            word_boundary,
         };
         let inner = py.detach(|| {
             let refs: Vec<&str> = patterns.iter().map(|s| s.as_str()).collect();
-            if case_insensitive {
-                MultiPatternMatcher::new_case_insensitive(&refs, kind)
-            } else {
-                MultiPatternMatcher::new(&refs, kind)
-            }
+            MultiPatternMatcher::with_options(&refs, options)
         });
         let inner = inner.map_err(pyo3::exceptions::PyValueError::new_err)?;
         Ok(Self {
@@ -180,14 +188,16 @@ impl PyMultiPatternMatcher {
             patterns,
             case_insensitive,
             longest_match,
+            word_boundary,
         })
     }
 
-    fn __getnewargs__(&self) -> (Vec<String>, bool, bool) {
+    fn __getnewargs__(&self) -> (Vec<String>, bool, bool, bool) {
         (
             self.patterns.clone(),
             self.case_insensitive,
             self.longest_match,
+            self.word_boundary,
         )
     }
 
@@ -228,13 +238,15 @@ impl PyMultiPatternMatcher {
     }
 
     /// Check if any pattern matches in the haystack.
-    fn is_match(&self, haystack: &str) -> bool {
-        self.inner.is_match(haystack)
+    fn is_match(&self, py: Python<'_>, haystack: &str) -> bool {
+        let inner = &self.inner;
+        py.detach(|| inner.is_match(haystack))
     }
 
     /// Count total non-overlapping matches across all patterns.
-    fn count(&self, haystack: &str) -> usize {
-        self.inner.count(haystack)
+    fn count(&self, py: Python<'_>, haystack: &str) -> usize {
+        let inner = &self.inner;
+        py.detach(|| inner.count(haystack))
     }
 
     /// Replace all matches with corresponding replacement strings.

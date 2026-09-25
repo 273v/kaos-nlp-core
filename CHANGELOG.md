@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `MultiPatternMatcher(..., word_boundary=True)` (Python keyword-only;
+  Rust `MultiPatternOptions::word_boundary` via
+  `MultiPatternMatcher::with_options`) keeps a match only if it does not
+  extend a word at either edge. Word chars are Unicode alphanumerics plus
+  combining marks; underscore, apostrophes, hyphens, other punctuation,
+  symbols, emoji and whitespace separate words; digits do not. Chars of
+  scripts written without spaces (Line_Break `ID`/`CJ`/`SA`: Han, kana,
+  Thai, ...) never require a boundary, so CJK patterns still match inside
+  unsegmented text. Rejected candidates are dropped before leftmost
+  selection. Applies uniformly to `find_all`, `find_all_batch`,
+  `is_match`, `count` and `replace_all`, and survives pickling.
+
 ### Fixed
 
 - `normalize(..., fold_case=True)` (Rust `NormalizeOptions::fold_case`) only
@@ -29,6 +43,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `fold_case` is on, including the canonical forms used internally by
   `detect_boilerplate` and structure scoring, so repeated headers that
   differ only in non-ASCII case now group together.
+
+- `MultiPatternMatcher(..., case_insensitive=True)` only ignored ASCII case:
+  `MultiPatternMatcher::new_case_insensitive` in
+  `rust/core/matching/multi_pattern.rs` relied on Aho-Corasick
+  `ascii_case_insensitive`, so `"são paulo"` did not match `"SÃO PAULO"`.
+  Patterns are now compiled as Unicode full case folds and non-ASCII
+  haystacks are folded per search with a byte map back to the original
+  text (pure-ASCII haystacks are searched directly, as before). Matches
+  must cover whole folds (`"strasse"` matches `"STRAßE"`; `"s"` does not
+  match half of a `ß`). Offsets remain character offsets into the
+  original haystack and `text` is the original slice.
 
 ### Dependencies
 
