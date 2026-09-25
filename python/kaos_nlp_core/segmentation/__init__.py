@@ -104,6 +104,16 @@ def normalize(
     that contributed it. ``orig_char_offsets`` is monotonically
     non-decreasing.
 
+    ``fold_case=True`` applies Unicode full case folding (the default,
+    non-Turkic mappings; the same result as :meth:`str.casefold`), so
+    ``"SÃO"`` becomes ``"são"`` and Greek capital and final sigma both
+    become small sigma.
+    Folds that expand to several chars (``"ß"`` -> ``"ss"``, ``"İ"`` ->
+    ``"i"`` + U+0307, ``"ﬁ"`` -> ``"fi"``) produce one
+    ``orig_char_offsets`` entry per output char, each pointing at the
+    source char that produced it, so ``original_char`` stays valid for
+    every output position. ASCII input takes a fast path.
+
     :raises NotImplementedError: when ``strip_enumerator_prefix=True``;
         the underlying Enumerator parser (P3) is not yet built.
     """

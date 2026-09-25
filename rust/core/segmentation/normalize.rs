@@ -12,12 +12,15 @@
 //!
 //! Trust model: this is a content normalizer, not a security boundary.
 //! Inputs may contain any UTF-8; outputs are guaranteed valid UTF-8 by
-//! construction (the transform tables emit only canonical ASCII bytes).
+//! construction (the punctuation table emits only canonical ASCII bytes and
+//! case folding emits whole code points from the ICU4X fold data).
 
 use std::borrow::Cow;
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+
+use crate::core::characters::casefold::fold_char_into;
 
 // ─── Public API ────────────────────────────────────────────────────────────
 
@@ -29,8 +32,13 @@ use thiserror::Error;
 pub struct NormalizeOptions {
     /// Collapse runs of `char::is_whitespace` to a single U+0020.
     pub collapse_whitespace: bool,
-    /// ASCII-only case fold (`A-Z` → `a-z`). Unicode case-fold is intentionally
-    /// out of scope — callers can run `icu_normalizer` first if they need it.
+    /// Unicode full case folding (`CaseFolding.txt` statuses C + F, default
+    /// non-Turkic mappings), e.g. `Ã` → `ã`, `Σ`/`ς` → `σ`. ASCII chars take a
+    /// table-free fast path. Folds that expand to several chars (`ß` → `ss`,
+    /// `İ` → `i` + U+0307, `ﬁ` → `fi`) emit one `orig_offsets` entry per
+    /// output char, each pointing at the source char that produced it, the
+    /// same way the ellipsis expansion does. See
+    /// [`crate::core::characters::casefold`].
     pub fold_case: bool,
     /// Map common Unicode punctuation (smart quotes, dashes, ellipsis,
     /// non-breaking spaces, soft hyphen, zero-width chars, bullets) to their
@@ -301,8 +309,8 @@ pub fn normalize<'a>(
     })
 }
 
-/// Emit one (post-Unicode-mapping) char into the output, applying ASCII
-/// fold_case / strip_punctuation if configured. Caller has already decided
+/// Emit one (post-Unicode-mapping) char into the output, applying Unicode
+/// fold_case / ASCII strip_punctuation if configured. Caller has already decided
 /// the source byte offset (`origin`) for the alignment table.
 #[inline]
 fn emit_one(
@@ -317,10 +325,23 @@ fn emit_one(
     if opts.strip_punctuation && (ch as u32) < 0x80 && is_ascii_strip_punct(ch as u8) {
         return;
     }
-    let mut emit = ch;
-    if opts.fold_case && emit.is_ascii_uppercase() {
-        emit = emit.to_ascii_lowercase();
+    if opts.fold_case && !ch.is_ascii() {
+        // Full case folding is context-free per code point, so folding here
+        // one source char at a time equals folding the whole string. An
+        // expanding fold (`ß` → `ss`) attributes every output char to the
+        // same source offset. Folded output never contains ASCII
+        // punctuation or whitespace, so no other transform needs to see it.
+        let n = fold_char_into(ch, out);
+        offsets.extend(std::iter::repeat_n(origin, n));
+        return;
     }
+    // ASCII fast path: the full fold of an ASCII char is its ASCII
+    // lowercase, so no table lookup is needed.
+    let emit = if opts.fold_case {
+        ch.to_ascii_lowercase()
+    } else {
+        ch
+    };
     out.push(emit);
     offsets.push(origin);
 }
@@ -480,16 +501,67 @@ mod tests {
         assert_eq!(r.text.as_ref(), "hello world");
     }
 
-    #[test]
-    fn fold_case_only_touches_ascii_codepoints() {
-        // Unicode case fold is intentionally out of scope: É (U+00C9) stays
-        // uppercase, but ASCII letters next to it still fold.
-        let opts = NormalizeOptions {
+    fn fold_opts() -> NormalizeOptions {
+        NormalizeOptions {
             fold_case: true,
             ..NormalizeOptions::default()
+        }
+    }
+
+    #[test]
+    fn fold_case_folds_non_ascii_uppercase() {
+        let r = normalize("ÉCOLE", fold_opts()).unwrap();
+        assert_eq!(r.text.as_ref(), "école");
+        let r = normalize("SÃO PAULO", fold_opts()).unwrap();
+        assert_eq!(r.text.as_ref(), "são paulo");
+        let r = normalize("ΟΔΥΣΣΕΥΣ", fold_opts()).unwrap();
+        assert_eq!(r.text.as_ref(), "οδυσσευσ");
+    }
+
+    #[test]
+    fn fold_case_reported_mixed_case() {
+        let src = "SÃO PAULO İstanbul STRAßE";
+        let r = normalize(src, fold_opts()).unwrap();
+        assert_eq!(r.text.as_ref(), "são paulo i\u{0307}stanbul strasse");
+        // Every output char maps to a char boundary of the source.
+        let map = r.orig_offsets.as_ref().unwrap();
+        assert_eq!(map.len(), r.text.chars().count());
+        for &o in map {
+            assert!(src.is_char_boundary(o as usize));
+        }
+    }
+
+    #[test]
+    fn fold_case_expansion_offsets_point_at_source_char() {
+        // "Aß!" — ß at byte 1 (2 bytes) expands to "ss"; '!' at byte 3.
+        let r = normalize("Aß!", fold_opts()).unwrap();
+        assert_eq!(r.text.as_ref(), "ass!");
+        assert_eq!(r.orig_offsets.as_deref(), Some(&[0u32, 1, 1, 3][..]));
+
+        // İ (U+0130, 2 bytes) expands to 'i' + U+0307; both map to byte 0.
+        let r = normalize("İx", fold_opts()).unwrap();
+        assert_eq!(r.text.as_ref(), "i\u{0307}x");
+        assert_eq!(r.orig_offsets.as_deref(), Some(&[0u32, 0, 2][..]));
+    }
+
+    #[test]
+    fn fold_case_leaves_caseless_chars_alone() {
+        let src = "東京 😀 e\u{0301} 123";
+        let r = normalize(src, fold_opts()).unwrap();
+        assert_eq!(r.text.as_ref(), src);
+        let r = normalize("", fold_opts()).unwrap();
+        assert_eq!(r.text.as_ref(), "");
+    }
+
+    #[test]
+    fn fold_case_combines_with_strip_punctuation() {
+        let opts = NormalizeOptions {
+            fold_case: true,
+            strip_punctuation: true,
+            ..NormalizeOptions::default()
         };
-        let r = normalize("ÉCOLE", opts).unwrap();
-        assert_eq!(r.text.as_ref(), "École");
+        let r = normalize("STRAßE, NO. 5!", opts).unwrap();
+        assert_eq!(r.text.as_ref(), "strasse no 5");
     }
 
     #[test]

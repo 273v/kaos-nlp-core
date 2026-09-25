@@ -61,6 +61,29 @@ fn synthetic_unicode_legal(target_bytes: usize) -> String {
     s
 }
 
+fn synthetic_unicode_mixed_case(target_bytes: usize) -> String {
+    // Upper/mixed-case non-ASCII text that exercises the Unicode case-fold
+    // path, including expanding folds (ß → ss, İ → i + U+0307).
+    let pool = [
+        "SÃO PAULO É A MAIOR CIDADE DO BRASIL.",
+        "İSTANBUL ŞEHRİ VE BOĞAZİÇİ KÖPRÜSÜ.",
+        "DIE HAUPTSTRAßE FÜHRT ZUM ÖFFENTLICHEN PLATZ.",
+        "ΟΙ ΑΘΗΝΑΙΟΙ ΣΥΝΕΛΕΓΗΣΑΝ ΣΤΗΝ ΑΓΟΡΑ.",
+        "Mixed ASCII Heading With Ümlaut And Ñandú",
+    ];
+    let mut s = String::with_capacity(target_bytes + 256);
+    while s.len() < target_bytes {
+        for line in &pool {
+            s.push_str(line);
+            s.push('\n');
+            if s.len() >= target_bytes {
+                break;
+            }
+        }
+    }
+    s
+}
+
 fn bench_normalize(c: &mut Criterion) {
     let mut group = c.benchmark_group("normalize");
 
@@ -138,6 +161,24 @@ fn bench_normalize(c: &mut Criterion) {
             &text,
             |b, t| {
                 b.iter(|| black_box(normalize(black_box(t), opts_aggressive).unwrap()));
+            },
+        );
+    }
+
+    // ── Unicode case fold — non-ASCII mixed-case text ─────────────────────
+    //
+    // `fold_case` applies full Unicode case folding (icu_casemap). ASCII
+    // chars keep a table-free fast path, so `ascii_fold` above is the
+    // pure-ASCII number; this group measures the per-char ICU lookup on
+    // text where most letters are non-ASCII or uppercase.
+    for &kb in &[16usize, 100] {
+        let text = synthetic_unicode_mixed_case(kb * 1024);
+        group.throughput(Throughput::Bytes(text.len() as u64));
+        group.bench_with_input(
+            BenchmarkId::new("unicode_fold", format!("{}KiB", kb)),
+            &text,
+            |b, t| {
+                b.iter(|| black_box(normalize(black_box(t), opts_fold).unwrap()));
             },
         );
     }
