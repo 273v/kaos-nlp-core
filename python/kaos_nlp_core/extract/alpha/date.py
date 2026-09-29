@@ -275,6 +275,43 @@ class AlphaDateExtractor(BaseAlphaExtractor[datetime.datetime]):
             # Feb 30, etc.
             return None
 
+    def _normalize_named_month(
+        self,
+        year_token: str,
+        month: int,
+        day_token: str,
+    ) -> datetime.datetime | None:
+        """Resolve a date whose month is a word (``19 May 2010``, ``May 19,
+        2010``, ``first day of May 2010``): the month is known, so each token
+        keeps its role. :meth:`normalize_date_tokens` would re-guess the
+        roles from the digits and read ``19 Oct. 12`` as 2019-12-10.
+
+        A 4-digit year is taken as written; a 2-digit year only when it is
+        greater than 31, since ``19 May 10`` gives no signal which number is
+        the year, and is expanded to the closer century.
+        """
+        if not (year_token.isdigit() and day_token.isdigit()):
+            return None
+        if len(year_token) == 4:
+            year_value = int(year_token)
+        elif len(year_token) == 2 and int(year_token) > 31:
+            current_year = datetime.datetime.now().year
+            current_century = current_year // 100
+            current = int(year_token) + current_century * 100
+            prior = int(year_token) + (current_century - 1) * 100
+            year_value = (
+                prior if abs(prior - current_year) < abs(current - current_year) else current
+            )
+        else:
+            return None
+        day_value = int(day_token)
+        if not (self.min_year <= year_value <= self.max_year) or not 1 <= day_value <= 31:
+            return None
+        try:
+            return datetime.datetime(year=year_value, month=month, day=day_value)
+        except ValueError:
+            return None
+
     # -- Extraction (ported from kelvin date.py:280-494) ------------------
 
     def extract_spans(
@@ -364,12 +401,11 @@ class AlphaDateExtractor(BaseAlphaExtractor[datetime.datetime]):
                     and post1_token.isdigit()
                     and len(post1_token) in (2, 4)
                 ):
-                    date_tokens = [
+                    date_value = self._normalize_named_month(
                         post1_token,
-                        str(self._month_map[token.lower()]),
+                        self._month_map[token.lower()],
                         pre_token,
-                    ]
-                    date_value = self.normalize_date_tokens(date_tokens, default_date=default_date)
+                    )
                     if date_value is not None:
                         yield AlphaSpan(date_value, tokens[i - 1].start, tokens[i + 1].end)
 
@@ -381,12 +417,11 @@ class AlphaDateExtractor(BaseAlphaExtractor[datetime.datetime]):
                     and post1_token.isdigit()
                     and len(post1_token) in (2, 4)
                 ):
-                    date_tokens = [
+                    date_value = self._normalize_named_month(
                         post1_token,
-                        str(self._month_map[token.lower()]),
+                        self._month_map[token.lower()],
                         str(self._ordinal_map[pre_token.lower()]),
-                    ]
-                    date_value = self.normalize_date_tokens(date_tokens, default_date=default_date)
+                    )
                     if date_value is not None:
                         yield AlphaSpan(date_value, tokens[i - 1].start, tokens[i + 1].end)
 
@@ -398,13 +433,10 @@ class AlphaDateExtractor(BaseAlphaExtractor[datetime.datetime]):
                         and post2_token.isdigit()
                         and len(post2_token) in (2, 4)
                     ):
-                        date_tokens = [
+                        date_value = self._normalize_named_month(
                             post2_token,
-                            str(self._month_map[token.lower()]),
+                            self._month_map[token.lower()],
                             post1_token,
-                        ]
-                        date_value = self.normalize_date_tokens(
-                            date_tokens, default_date=default_date
                         )
                         if date_value is not None:
                             yield AlphaSpan(date_value, tokens[i].start, tokens[i + 2].end)
@@ -415,13 +447,10 @@ class AlphaDateExtractor(BaseAlphaExtractor[datetime.datetime]):
                         and post2_token.isdigit()
                         and len(post2_token) in (2, 4)
                     ):
-                        date_tokens = [
+                        date_value = self._normalize_named_month(
                             post2_token,
-                            str(self._month_map[token.lower()]),
+                            self._month_map[token.lower()],
                             str(self._ordinal_map[post1_token.lower()]),
-                        ]
-                        date_value = self.normalize_date_tokens(
-                            date_tokens, default_date=default_date
                         )
                         if date_value is not None:
                             yield AlphaSpan(date_value, tokens[i].start, tokens[i + 2].end)
@@ -437,13 +466,10 @@ class AlphaDateExtractor(BaseAlphaExtractor[datetime.datetime]):
                         and pre2_token.lower() == "day"
                         and pre3_token.lower() in self._ordinal_map
                     ):
-                        date_tokens = [
+                        date_value = self._normalize_named_month(
                             post1_token,
-                            str(self._month_map[token.lower()]),
+                            self._month_map[token.lower()],
                             str(self._ordinal_map[pre3_token.lower()]),
-                        ]
-                        date_value = self.normalize_date_tokens(
-                            date_tokens, default_date=default_date
                         )
                         if date_value is not None:
                             yield AlphaSpan(date_value, tokens[i - 3].start, tokens[i + 1].end)

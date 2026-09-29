@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   source credits, the CFR, the Federal Register), so
   `"Sept. 30, 1996"` yielded no date. `sept` now maps to 9, as it already
   did for Spanish, French and German.
+- `AlphaDateExtractor` re-guessed token roles for dates with a month word:
+  the month-word branches handed `[year, month, day]` to
+  `normalize_date_tokens`, which assigns roles from the digits alone, so
+  `"§§12, 19, Oct. 12, 1996"` also yielded `19 Oct. 12` as 2019-12-10 (the
+  month's value became the day). A named month now keeps each token's role;
+  a 2-digit year is taken only when greater than 31 (the documented
+  `19 May 10` limitation), a 4-digit year as written.
 
 ## [0.1.13] — 2026-09-25
 
