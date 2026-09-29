@@ -326,6 +326,7 @@ MONTH_MAP: dict[str, dict[str, int]] = {
         "aug": 8,
         "september": 9,
         "sep": 9,
+        "sept": 9,
         "october": 10,
         "oct": 10,
         "november": 11,

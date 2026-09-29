@@ -152,6 +152,14 @@ class TestMonthDayYear:
         text = "Signed Jan 15, 2025."
         assert any(s.value == datetime.datetime(2025, 1, 15) for s in extractor.extract_spans(text))
 
+    def test_sept_abbreviation(self, extractor: AlphaDateExtractor) -> None:
+        # GPO house style (U.S. Code source credits, the CFR) abbreviates
+        # September as "Sept.", not "Sep.".
+        text = "Pub. L. 104-208, Sept. 30, 1996, 110 Stat. 3009."
+        spans = list(extractor.extract_spans(text))
+        assert [s.value for s in spans] == [datetime.datetime(1996, 9, 30)]
+        assert text[spans[0].start :].startswith("Sept. 30, 1996")
+
 
 class TestOrdinalForms:
     """Branches 3, 5, 6 — ordinal day forms."""

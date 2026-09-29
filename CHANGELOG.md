@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.14] — 2026-09-29
+
+### Fixed
+
+- `AlphaDateExtractor` did not read `Sept.`: the English `MONTH_MAP` had
+  `sep` but not `sept`, the abbreviation GPO house style uses (U.S. Code
+  source credits, the CFR, the Federal Register), so
+  `"Sept. 30, 1996"` yielded no date. `sept` now maps to 9, as it already
+  did for Spanish, French and German.
+
 ## [0.1.13] — 2026-09-25
 
 ### Added
