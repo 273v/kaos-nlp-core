@@ -8,6 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.15] — 2026-09-29
+
+There is no 0.1.14 release: the tag `v0.1.14` was pushed in error on the
+0.1.13 commit (its release run was cancelled before any job ran, and the
+version gate would have refused it), and release tags cannot be deleted.
+
+### Fixed
+
+- `AlphaDateExtractor` did not read `Sept.`: the English `MONTH_MAP` had
+  `sep` but not `sept`, the abbreviation GPO house style uses (U.S. Code
+  source credits, the CFR, the Federal Register), so
+  `"Sept. 30, 1996"` yielded no date. `sept` now maps to 9, as it already
+  did for Spanish, French and German.
+- `AlphaDateExtractor` re-guessed token roles for dates with a month word:
+  the month-word branches handed `[year, month, day]` to
+  `normalize_date_tokens`, which assigns roles from the digits alone, so
+  `"§§12, 19, Oct. 12, 1996"` also yielded `19 Oct. 12` as 2019-12-10 (the
+  month's value became the day). A named month now keeps each token's role;
+  a 2-digit year is taken only when greater than 31 (the documented
+  `19 May 10` limitation), a 4-digit year as written.
+
 ## [0.1.13] — 2026-09-25
 
 ### Added

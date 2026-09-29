@@ -152,6 +152,25 @@ class TestMonthDayYear:
         text = "Signed Jan 15, 2025."
         assert any(s.value == datetime.datetime(2025, 1, 15) for s in extractor.extract_spans(text))
 
+    def test_sept_abbreviation(self, extractor: AlphaDateExtractor) -> None:
+        # GPO house style (U.S. Code source credits, the CFR) abbreviates
+        # September as "Sept.", not "Sep.".
+        text = "Pub. L. 104-208, Sept. 30, 1996, 110 Stat. 3009."
+        spans = list(extractor.extract_spans(text))
+        assert [s.value for s in spans] == [datetime.datetime(1996, 9, 30)]
+        assert text[spans[0].start :].startswith("Sept. 30, 1996")
+
+    def test_named_month_keeps_token_roles(self, extractor: AlphaDateExtractor) -> None:
+        # "§§12, 19, Oct. 12, 1996": "19 Oct. 12" has no year signal (a
+        # 2-digit year <= 31) and was read as 2019-12-10, with the month
+        # word's value reassigned to the day.
+        text = "Pub. L. 104-304, §§12, 19, Oct. 12, 1996, 110 Stat. 3802"
+        assert [s.value for s in extractor.extract_spans(text)] == [datetime.datetime(1996, 10, 12)]
+        assert list(extractor.extract_spans("Dated 19 Oct 12.")) == []
+        assert [s.value for s in extractor.extract_spans("Dated 19 Oct 98.")] == [
+            datetime.datetime(1998, 10, 19)
+        ]
+
 
 class TestOrdinalForms:
     """Branches 3, 5, 6 — ordinal day forms."""
