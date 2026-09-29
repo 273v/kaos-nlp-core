@@ -8,7 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.14] — 2026-09-29
+## [0.1.15] — 2026-09-29
+
+There is no 0.1.14 release: the tag `v0.1.14` was pushed in error on the
+0.1.13 commit (its release run was cancelled before any job ran, and the
+version gate would have refused it), and release tags cannot be deleted.
 
 ### Fixed
 
