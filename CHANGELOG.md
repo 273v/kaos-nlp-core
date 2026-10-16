@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `tests/scale/` no longer rewrites the committed `docs/benchmarks/*.json`
+  reports on every run (the documented `pytest tests/` gate includes
+  `slow`, so a routine local run left the tree dirty). Writing is now
+  opt-in with `KAOS_NLP_SCALE_REPORT=1`, replacing the opt-out
+  `KAOS_NLP_SCALE_NO_REPORT`, and reports end with a newline.
+
 ## [0.1.15] — 2026-09-29
 
 There is no 0.1.14 release: the tag `v0.1.14` was pushed in error on the

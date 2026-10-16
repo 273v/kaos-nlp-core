@@ -22,9 +22,10 @@ What these tests prove (and what unit tests do not):
    ceiling and we tolerate one-unit-oversize, but a runaway chunker
    that emits a 10x-budget chunk would fail.
 
-The throughput/distribution metrics are written to
-``docs/benchmarks/<corpus>-chunkers-scale.json`` (gitignored) so the
-release gate can track regressions over time.
+With ``KAOS_NLP_SCALE_REPORT=1`` the throughput/distribution metrics
+are written to ``docs/benchmarks/chunker-scale-<corpus>-<chunker>.json``
+(committed) so the release gate can track regressions over time. The
+default is off, so a plain ``pytest tests/`` leaves the tree clean.
 
 These tests are slow (default sample ~1000 USC docs takes 5-10 s on
 a laptop). They are gated by ``pytestmark = pytest.mark.slow`` in
@@ -107,11 +108,11 @@ def _emit_report(name: str, payload: dict[str, Any]) -> None:
     Failure is silent: the test's correctness assertions are the
     authoritative signal; the JSON is a side-channel for tracking.
     """
-    if os.environ.get("KAOS_NLP_SCALE_NO_REPORT"):
+    if not os.environ.get("KAOS_NLP_SCALE_REPORT"):
         return
     try:
         _BENCH_DIR.mkdir(parents=True, exist_ok=True)
-        (_BENCH_DIR / f"{name}.json").write_text(json.dumps(payload, indent=2))
+        (_BENCH_DIR / f"{name}.json").write_text(json.dumps(payload, indent=2) + "\n")
     except Exception:
         # Reporting is non-blocking by design.
         pass
