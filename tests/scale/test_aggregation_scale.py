@@ -40,11 +40,15 @@ _BENCH_DIR = Path(__file__).resolve().parent.parent.parent / "docs" / "benchmark
 
 
 def _emit_report(name: str, payload: dict[str, Any]) -> None:
-    if os.environ.get("KAOS_NLP_SCALE_NO_REPORT"):
+    """Write ``docs/benchmarks/<name>.json`` when ``KAOS_NLP_SCALE_REPORT`` is set.
+
+    Opt-in so a plain ``pytest tests/`` leaves the committed reports alone.
+    """
+    if not os.environ.get("KAOS_NLP_SCALE_REPORT"):
         return
     try:
         _BENCH_DIR.mkdir(parents=True, exist_ok=True)
-        (_BENCH_DIR / f"{name}.json").write_text(json.dumps(payload, indent=2))
+        (_BENCH_DIR / f"{name}.json").write_text(json.dumps(payload, indent=2) + "\n")
     except Exception:
         pass
 
