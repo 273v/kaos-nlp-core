@@ -133,7 +133,7 @@ flate2 = "1.1"
 # Level is read from KAOS_NLP_ZSTD_LEVEL (default 3) so user-saved
 # artifacts (search indexes, etc.) stay fast while the build script for
 # the OpenGloss lexicon can override to 19 for the canonical asset.
-zstd = "0.13"
+zstd = "0.14"
 
 # Stack-allocated small vectors
 smallvec = { version = "1.15", features = ["serde"] }
